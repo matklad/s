@@ -161,9 +161,49 @@ fn builtin() -> Env {
                     )
                 )
             ))
-        })
+        });
 
+        insert_sugar(&mut map, "let", |args| {
+            if args.len() != 2 {
+                return Err(());
+            }
+            let mut names = vec![];
+            let mut inits = vec![];
+            let bindings = if let Sexpr::List(ref bindings) = args[0] {
+                bindings
+            } else {
+                return Err(());
+            };
+
+            if bindings.len() % 2 != 0 {
+                return Err(());
+            }
+
+            for i in 0..bindings.len() / 2 {
+                names.push(if let Sexpr::Atom(ref name) = bindings[2 * i] {
+                    Sexpr::Atom(name.clone())
+                } else {
+                    return Err(());
+                });
+                inits.push(bindings[2 * i + 1].clone());
+            }
+
+
+            let body = args[1].clone();
+
+            let lambda = list!(
+                atom!("lambda"),
+                Sexpr::List(names),
+                body
+            );
+
+            let mut call = vec![lambda];
+            call.extend(inits.into_iter());
+
+            Ok(Sexpr::List(call))
+        });
     }
+
     {
         let bare_map = map.clone();
         let bare_env = mk_env(move |x| bare_map.get(x).cloned());
@@ -404,6 +444,7 @@ mod tests {
         ", "35");
     }
 
+
     #[test]
     fn comb3() {
         eval_cmp("
@@ -418,6 +459,7 @@ mod tests {
         ", "35");
     }
 
+
     #[test]
     fn sum() {
         eval_cmp("((lambda (x y) (- x y)) 94 2)", "92")
@@ -430,6 +472,18 @@ mod tests {
         eval_cmp("(quote (quote quote))", "(quote quote)");
         eval_cmp("'('quote)", "((quote quote))");
         eval_cmp("((lambda (x) x) '(1 2 3))", "(1 2 3)")
+    }
+
+
+    #[test]
+    fn zero_args() {
+        eval_cmp("((lambda () 92))", "92")
+    }
+
+
+    #[test]
+    fn let_() {
+        eval_cmp("(let (a 94 b 2) (- a b))", "92");
     }
 
 
