@@ -330,7 +330,41 @@ fn builtin() -> Env {
             }
 
             Ok(Value::number(if let Value::Sexpr(Sexpr::Number(_)) = args[0] { 1 } else { 0 }))
-        })
+        });
+
+        insert_function(&mut map, "car", |args| {
+            if args.len() != 1 {
+                bail!("Expected one argument for `car`!");
+            }
+            let ls = if let Value::Sexpr(Sexpr::List(ref ls)) = args[0] {
+                ls
+            } else {
+                bail!("Expected list in `car`!");
+            };
+
+            Ok(Value::Sexpr(if ls.is_empty() {
+                Sexpr::List(Vec::new())
+            } else {
+                ls[0].clone()
+            }))
+        });
+
+        insert_function(&mut map, "cdr", |args| {
+            if args.len() != 1 {
+                bail!("Expected one argument for `cdr`!");
+            }
+            let ls = if let Value::Sexpr(Sexpr::List(ref ls)) = args[0] {
+                ls
+            } else {
+                bail!("Expected list in `car`!");
+            };
+
+            Ok(Value::Sexpr(if ls.is_empty() {
+                Sexpr::List(Vec::new())
+            } else {
+                Sexpr::List(ls[1..].iter().cloned().collect())
+            }))
+        });
     }
     mk_env(move |x| map.get(x).cloned())
 }
@@ -636,5 +670,17 @@ mod eval_tests {
                     (+ 0 1) (+ 1 1)
                     (/ 0 0) 92)",
                  "2");
+    }
+
+
+    #[test]
+    fn cadavr() {
+        eval_cmp("(car '(a b c))", "a");
+        eval_cmp("(cdr '(a b c))", "(b c)");
+        eval_cmp("
+            (let (caaddr (lambda (xs)
+                            (car (car (cdr (cdr xs))))))
+              (caaddr '((a b) (b c) (c d))))
+        ", "c");
     }
 }
