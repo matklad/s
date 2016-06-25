@@ -55,6 +55,12 @@ fn builtin() -> Env {
     let mut map = HashMap::new();
 
     {
+        insert_closure(&mut map, "quote", |_, args| {
+            if args.len() != 1 {
+                return Err(());
+            }
+            Ok(Value::Sexpr(args[0].clone()))
+        });
         insert_closure(&mut map, "if", |env, args| {
             if args.len() != 3 {
                 return Err(());
@@ -198,6 +204,7 @@ mod tests {
 
     fn eval_cmp(expr: &str, result: &str) {
         let expr = parse(expr);
+        println!("{:?}", expr);
         let actual_result = expr.eval().unwrap().to_string();
         assert_eq!(result, actual_result);
     }
@@ -340,6 +347,14 @@ mod tests {
     #[test]
     fn sum() {
         eval_cmp("((lambda (x y) (- x y)) 94 2)", "92")
+    }
+
+    #[test]
+    fn quoting() {
+        eval_cmp("(quote (lambda (x) x))", "(lambda (x) x)");
+        eval_cmp("(quote (quote quote))", "(quote quote)");
+        eval_cmp("'('quote)", "((quote quote))");
+        eval_cmp("((lambda (x) x) '(1 2 3))", "(1 2 3)")
     }
 
 
