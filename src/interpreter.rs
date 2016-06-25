@@ -109,6 +109,17 @@ fn builtin() -> Env {
         })
     }
     {
+        fn insert_sugar<F: Fn(&[Sexpr]) -> Result<Sexpr, ()> + 'static>(
+            map: &mut HashMap<String, Value>,
+            name: &str,
+            f: F
+        ) {
+            insert_closure(map, name, move |env, args| {
+                let desugared = try!(f(args));
+                eval(env, &desugared)
+            });
+        }
+
         macro_rules! atom (
             ($e:expr) => { Sexpr::Atom($e.to_owned()) }
         );
@@ -116,7 +127,7 @@ fn builtin() -> Env {
         macro_rules! list (
             ( $($ee:expr),* ) => { Sexpr::List(vec![$($ee),*]) }
         );
-        insert_closure(&mut map, "rec", |env, args| {
+        insert_sugar(&mut map, "rec", |args| {
             if args.len() != 3 {
                 return Err(());
             }
@@ -138,7 +149,7 @@ fn builtin() -> Env {
             };
             let body = args[2].clone();
 
-            let desugaed = list!(
+            Ok(list!(
                 atom!(fix),
                 list!(
                     atom!("lambda"),
@@ -149,9 +160,9 @@ fn builtin() -> Env {
                         body
                     )
                 )
-            );
-            eval(env, &desugaed)
+            ))
         })
+
     }
     {
         let bare_map = map.clone();
