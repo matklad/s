@@ -1,13 +1,13 @@
 use std::fmt;
 use std::rc::Rc;
 use std::collections::HashMap;
-use ast::Expr;
+use sexpr::Sexpr;
 
 
 #[derive(Clone)]
 pub enum Value {
     Number(i64),
-    Closure(Rc<Fn(&Env, &[Expr]) -> Result<Value, ()>>)
+    Closure(Rc<Fn(&Env, &[Sexpr]) -> Result<Value, ()>>)
 }
 
 
@@ -15,7 +15,7 @@ pub type Env = Rc<Fn(&str) -> Option<Value>>;
 
 
 impl Value {
-    pub fn closure<F: Fn(&Env, &[Expr]) -> Result<Value, ()> + 'static>(f: F) -> Value {
+    pub fn closure<F: Fn(&Env, &[Sexpr]) -> Result<Value, ()> + 'static>(f: F) -> Value {
         Value::Closure(Rc::new(f))
     }
 }
@@ -31,7 +31,7 @@ impl fmt::Display for Value {
 }
 
 
-impl Expr {
+impl Sexpr {
     pub fn eval(&self) -> Result<Value, ()> {
         let env = builtin();
         eval(&env, self)
@@ -40,7 +40,7 @@ impl Expr {
 
 
 fn builtin() -> Env {
-    fn insert_closure<F: Fn(&Env, &[Expr]) -> Result<Value, ()> + 'static>(
+    fn insert_closure<F: Fn(&Env, &[Sexpr]) -> Result<Value, ()> + 'static>(
         map: &mut HashMap<String, Value>,
         name: &str,
         f: F
@@ -65,21 +65,14 @@ fn builtin() -> Env {
             if args.len() != 2 {
                 return Err(());
             }
-            let formals: Vec<String> = if let Expr::Call { ref fun, ref args } = args[0] {
-                let first = if let Expr::Var(ref name) = **fun {
-                    name.to_owned()
-                } else {
-                    return Err(());
-                };
-                let mut formals = vec![first];
-                for arg in args {
-                    if let Expr::Var(ref name) = *arg {
-                        formals.push(name.to_owned());
+            let formals: Vec<String> = if let Sexpr::List(ref args) = args[0] {
+                try!(args.iter().map(|arg| {
+                    if let Sexpr::Atom(ref name) = *arg {
+                        Ok(name.to_owned())
                     } else {
-                        return Err(());
+                        Err(())
                     }
-                }
-                formals
+                }).collect())
             } else {
                 return Err(());
             };
@@ -110,7 +103,7 @@ fn builtin() -> Env {
         let bare_env = mk_env(move |x| bare_map.get(x).cloned());
         let mut insert = |name: &str, code: &str| map.insert(
             name.to_owned(),
-            eval(&bare_env, &code.parse::<Expr>().unwrap()).unwrap()
+            eval(&bare_env, &code.parse::<Sexpr>().unwrap()).unwrap()
         );
         insert("fix", "
 ((lambda (q) (lambda (f) (f (lambda (x)
@@ -160,7 +153,7 @@ fn mk_env<F: Fn(&str) -> Option<Value> + 'static>(f: F) -> Env {
 }
 
 
-fn eval_number(env: &Env, expr: &Expr) -> Result<i64, ()> {
+fn eval_number(env: &Env, expr: &Sexpr) -> Result<i64, ()> {
     match try!(eval(env, expr)) {
         Value::Number(i) => Ok(i),
         _ => Err(()),
@@ -168,14 +161,17 @@ fn eval_number(env: &Env, expr: &Expr) -> Result<i64, ()> {
 }
 
 
-fn eval(env: &Env, expr: &Expr) -> Result<Value, ()> {
+fn eval(env: &Env, expr: &Sexpr) -> Result<Value, ()> {
     match *expr {
-        Expr::Number(i) => Ok(Value::Number(i)),
-        Expr::Var(ref v) => env(v).ok_or(()),
-        Expr::Call { ref fun, ref args } => {
-            let fun = try!(eval(env, fun));
+        Sexpr::Number(i) => Ok(Value::Number(i)),
+        Sexpr::Atom(ref v) => env(v).ok_or(()),
+        Sexpr::List(ref args) => {
+            if args.is_empty() {
+                return Err(());
+            }
+            let fun = try!(eval(env, &args[0]));
             if let Value::Closure(ref f) = fun {
-                f(env, args)
+                f(env, &args[1..])
             } else {
                 Err(())
             }
@@ -187,11 +183,11 @@ fn eval(env: &Env, expr: &Expr) -> Result<Value, ()> {
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;
-    use ast::Expr;
+    use sexpr::Sexpr;
     use super::{eval, Value, mk_env, builtin};
 
 
-    fn parse(expr: &str) -> Expr {
+    fn parse(expr: &str) -> Sexpr {
         expr.parse().unwrap()
     }
 
@@ -204,7 +200,7 @@ mod tests {
 
 
     fn eval_invalid(expr: &str) {
-        let expr = expr.parse::<Expr>().unwrap();
+        let expr = expr.parse::<Sexpr>().unwrap();
         assert!(expr.eval().is_err());
     }
 

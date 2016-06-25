@@ -1,6 +1,4 @@
 mod sexpr;
-mod ast;
-mod parser;
 mod interpreter;
 
 
