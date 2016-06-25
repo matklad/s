@@ -422,7 +422,7 @@ mod special_test {
 
 
 #[cfg(test)]
-mod eval_tests {
+mod meta_eval_tests {
     use sexpr::Sexpr;
     use super::{Value, Error};
 
@@ -441,8 +441,7 @@ mod eval_tests {
 
     fn eval_cmp(expr: &str, result: &str) {
         println!("{}", expr);
-        let actual_result = eval(expr).expect("Eval Error").to_string();
-        //        let actual_result = meta_eval(expr).expect("Eval Error").to_string();
+        let actual_result = meta_eval(expr).expect("Eval Error").to_string();
         assert_eq!(result, actual_result);
     }
 
@@ -457,6 +456,32 @@ mod eval_tests {
     fn integers() {
         eval_cmp("0", "0");
         eval_cmp("-1", "-1");
+    }
+
+
+    #[test]
+    fn self_evaluating_empty_list() {
+        eval_cmp("()", "()");
+    }
+}
+
+
+#[cfg(test)]
+mod eval_tests {
+    use sexpr::Sexpr;
+    use super::{Value, Error};
+
+
+    fn eval(expr: &str) -> Result<Value, Error> {
+        let expr: Sexpr = expr.parse().expect("Syntax error");
+        expr.eval()
+    }
+
+
+    fn eval_cmp(expr: &str, result: &str) {
+        println!("{}", expr);
+        let actual_result = eval(expr).expect("Eval Error").to_string();
+        assert_eq!(result, actual_result);
     }
 
 
@@ -592,12 +617,6 @@ mod eval_tests {
     #[test]
     fn let_() {
         eval_cmp("(let (a 94 b 2) (- a b))", "92");
-    }
-
-
-    #[test]
-    fn self_evaluating_empty_list() {
-        eval_cmp("()", "()");
     }
 
 
