@@ -341,26 +341,37 @@ mod special_test {
 
 #[cfg(test)]
 mod eval_tests {
-    use std::rc::Rc;
     use sexpr::Sexpr;
+    use super::Value;
 
 
-    fn parse(expr: &str) -> Sexpr {
-        expr.parse().unwrap()
+    fn eval(expr: &str) -> Result<Value, ()> {
+        let expr: Sexpr = expr.parse().expect("Syntax error");
+        expr.eval()
+    }
+
+
+    fn meta_eval(expr: &str) -> Result<Value, ()> {
+        let interpreter = include_str!("eval.s");
+        eval(&format!("({} '{})", interpreter, expr))
     }
 
 
     fn eval_cmp(expr: &str, result: &str) {
-        let expr = parse(expr);
-        println!("{:?}", expr);
-        let actual_result = expr.eval().unwrap().to_string();
+        println!("{}", expr);
+        let actual_result = meta_eval(expr).expect("Eval Error").to_string();
         assert_eq!(result, actual_result);
     }
 
 
     #[test]
-    fn integers() {
+    fn smoke() {
         eval_cmp("92", "92");
+    }
+
+
+    #[test]
+    fn integers() {
         eval_cmp("0", "0");
         eval_cmp("-1", "-1");
     }

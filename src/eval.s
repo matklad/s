@@ -1,0 +1,1 @@
+(lambda (expr) 92)
