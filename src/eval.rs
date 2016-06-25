@@ -91,14 +91,19 @@ fn builtin() -> Env {
             }
             Ok(Value::Sexpr(args[0].clone()))
         });
-        insert_closure(&mut map, "if", |env, args| {
-            if args.len() != 3 {
-                bail!("Wrong syntax, expected `(if cond tru fls)`!")
+
+        insert_closure(&mut map, "cond", |env, args| {
+            if args.len() % 2 != 0 {
+                bail!("Wrong syntax, expected even number of cond branches!");
             }
-            match try!(eval_number(env, &args[0])) {
-                0 => eval(env, &args[2]),
-                _ => eval(env, &args[1]),
+            for i in 0..args.len() / 2 {
+                let cond = &args[2 * i];
+                let expr = &args[2 * i + 1];
+                if try!(eval_number(env, cond)) != 0 {
+                    return eval(env, expr);
+                }
             }
+            bail!("Unexhaustive cond");
         });
 
         insert_closure(&mut map, "lambda", |env, args| {
@@ -232,6 +237,21 @@ fn builtin() -> Env {
 
             Ok(Sexpr::List(call))
         });
+
+        insert_sugar(&mut map, "if", |args| {
+            if args.len() != 3 {
+                bail!("Wrong syntax, expected `(if cond tru fls)`!")
+            }
+            let cond = args[0].clone();
+            let tru = args[1].clone();
+            let fls = args[2].clone();
+
+            Ok(list!(
+                atom!("cond"),
+                cond, tru,
+                Sexpr::Number(1), fls
+            ))
+        });
     }
 
     {
@@ -292,6 +312,14 @@ fn builtin() -> Env {
         insert_binop!("/", Div::div);
         insert_binop!("=", |x, y| if x == y { 1 } else { 0 });
         insert_binop!("<", |x, y| if x < y { 1 } else { 0 });
+
+        insert_function(&mut map, "is_number", |args| {
+            if args.len() != 1 {
+                bail!("Expected one argument for `is_number`!");
+            }
+
+            Ok(Value::number(if let Value::Sexpr(Sexpr::Number(_)) = args[0] { 1 } else { 0 }))
+        })
     }
     mk_env(move |x| map.get(x).cloned())
 }
@@ -403,6 +431,7 @@ mod eval_tests {
     fn eval_cmp(expr: &str, result: &str) {
         println!("{}", expr);
         let actual_result = eval(expr).expect("Eval Error").to_string();
+        //        let actual_result = meta_eval(expr).expect("Eval Error").to_string();
         assert_eq!(result, actual_result);
     }
 
@@ -558,5 +587,16 @@ mod eval_tests {
     #[test]
     fn self_evaluating_empty_list() {
         eval_cmp("()", "()");
+    }
+
+
+    #[test]
+    fn cond() {
+        eval_cmp("(cond
+                    0 0
+                    (- 2 2) 1
+                    (+ 0 1) (+ 1 1)
+                    (/ 0 0) 92)",
+                 "2");
     }
 }

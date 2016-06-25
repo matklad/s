@@ -1,3 +1,3 @@
-(lambda (expr) 92
+(lambda (expr)
     (if (is_number expr) expr ())
 )
