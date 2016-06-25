@@ -109,6 +109,51 @@ fn builtin() -> Env {
         })
     }
     {
+        macro_rules! atom (
+            ($e:expr) => { Sexpr::Atom($e.to_owned()) }
+        );
+
+        macro_rules! list (
+            ( $($ee:expr),* ) => { Sexpr::List(vec![$($ee),*]) }
+        );
+        insert_closure(&mut map, "rec", |env, args| {
+            if args.len() != 3 {
+                return Err(());
+            }
+
+            let name = if let Sexpr::Atom(ref name) = args[0] {
+                Sexpr::Atom(name.clone())
+            } else {
+                return Err(());
+            };
+            let formals = args[1].clone();
+            let fix = if let Sexpr::List(ref names) = formals {
+                match names.len() {
+                    1 => "fix",
+                    2 => "fix2",
+                    _ => return Err(())
+                }
+            } else {
+                return Err(());
+            };
+            let body = args[2].clone();
+
+            let desugaed = list!(
+                atom!(fix),
+                list!(
+                    atom!("lambda"),
+                    list!(name),
+                    list!(
+                        atom!("lambda"),
+                        formals,
+                        body
+                    )
+                )
+            );
+            eval(env, &desugaed)
+        })
+    }
+    {
         let bare_map = map.clone();
         let bare_env = mk_env(move |x| bare_map.get(x).cloned());
         let mut insert = |name: &str, code: &str| map.insert(
@@ -308,6 +353,11 @@ mod tests {
     (lambda (n) (if (= 0 n) 1 (* n (F (- n 1)))))))
 6)
         ", "720");
+
+        eval_cmp("
+((rec F (n) (if (= 0 n) 1 (* n (F (- n 1)))))
+6)
+        ", "720");
     }
 
 
@@ -343,11 +393,25 @@ mod tests {
         ", "35");
     }
 
+    #[test]
+    fn comb3() {
+        eval_cmp("
+((rec C (n k)
+      (if (= k 0) 1
+          (if (= k n) 1
+              (+
+               (C (- n 1) k)
+               (C (- n 1) (- k 1))))
+          ))
+  7 3)
+        ", "35");
+    }
 
     #[test]
     fn sum() {
         eval_cmp("((lambda (x y) (- x y)) 94 2)", "92")
     }
+
 
     #[test]
     fn quoting() {
