@@ -14,14 +14,9 @@ impl FromStr for Expr {
 
 
 fn read_sexpr(sexpr: &Sexpr) -> Result<Expr, ()> {
-    match *sexpr {
-        Sexpr::Atom(ref data) => {
-            Ok(if let Ok(i) = data.parse::<i64>() {
-                Expr::Number(i)
-            } else {
-                Expr::Var(data.to_owned())
-            })
-        }
+    Ok(match *sexpr {
+        Sexpr::Number(x) => Expr::Number(x),
+        Sexpr::Atom(ref data) => Expr::Var(data.to_owned()),
         Sexpr::List(ref args) => {
             if args.is_empty() {
                 return Err(());
@@ -29,9 +24,9 @@ fn read_sexpr(sexpr: &Sexpr) -> Result<Expr, ()> {
 
             let fun = try!(read_sexpr(&args[0]));
             let actuals: Vec<Expr> = try!(args[1..].iter().map(|a| read_sexpr(a)).collect());
-            Ok(Expr::call(fun, actuals))
+            Expr::call(fun, actuals)
         },
-    }
+    })
 }
 
 

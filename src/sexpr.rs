@@ -4,6 +4,7 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum Sexpr {
+    Number(i64),
     Atom(String),
     List(Vec<Sexpr>)
 }
@@ -24,7 +25,8 @@ impl FromStr for Sexpr {
 impl fmt::Display for Sexpr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Sexpr::Atom(ref s) => try!(s.fmt(f)),
+            Sexpr::Number(x) => x.fmt(f),
+            Sexpr::Atom(ref s) => s.fmt(f),
             Sexpr::List(ref xs) => {
                 try!('('.fmt(f));
                 let mut first = true;
@@ -35,10 +37,9 @@ impl fmt::Display for Sexpr {
                     try!(x.fmt(f));
                     first = false;
                 }
-                try!(')'.fmt(f));
+                ')'.fmt(f)
             }
         }
-        Ok(())
     }
 }
 
@@ -67,7 +68,11 @@ fn parse(s: &str) -> Option<(Sexpr, &str)> {
             let idx = s.find(|c: char| c == '(' || c == ')' || c.is_whitespace()).unwrap_or(s.len());
             assert!(idx > 0);
             let (atom, leftover) = s.split_at(idx);
-            let expr = Sexpr::Atom(atom.to_owned());
+            let expr = if let Ok(x) = atom.parse::<i64>() {
+                Sexpr::Number(x)
+            } else {
+                Sexpr::Atom(atom.to_owned())
+            };
             Some((expr, leftover))
         },
     }
