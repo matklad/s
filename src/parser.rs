@@ -45,16 +45,6 @@ fn read_sexpr(sexpr: &Sexpr) -> Result<Expr, ()> {
                         let body = try!(read_sexpr(&args[2]));
                         Ok(Expr::fun(formals, body))
                     },
-                    "if" => return {
-                        if args.len() != 4 {
-                            return Err(());
-                        }
-
-                        let cond = try!(read_sexpr(&args[1]));
-                        let tru = try!(read_sexpr(&args[2]));
-                        let fls = try!(read_sexpr(&args[3]));
-                        Ok(Expr::if_(cond, tru, fls))
-                    },
                     _ => {}
                 }
             }

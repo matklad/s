@@ -41,6 +41,11 @@ impl Expr {
 
 fn builtin() -> Env {
     let mut map = HashMap::new();
+    macro_rules! insert_closure {
+        ($name:expr, $cls:expr) => {
+            map.insert($name.to_owned(), Value::closure($cls));
+        }
+    };
     {
         let empty_env = mk_env(|_| None);
         let mut insert = |name: &str, code: &str| map.insert(
@@ -68,14 +73,14 @@ fn builtin() -> Env {
 
         macro_rules! insert_binop (
             ($name:expr, $op:expr) => {
-                map.insert($name.to_string(), Value::closure(|env, args| {
+                insert_closure!($name, |env, args| {
                     if args.len() != 2 {
                         return Err(());
                     }
                     let lhs = try!(eval_number(env, &args[0]));
                     let rhs = try!(eval_number(env, &args[1]));
                     Ok(Value::Number($op(lhs, rhs)))
-                }));
+                });
             }
         );
 
@@ -85,6 +90,17 @@ fn builtin() -> Env {
         insert_binop!("/", Div::div);
         insert_binop!("=", |x, y| if x == y { 1 } else { 0 });
         insert_binop!("<", |x, y| if x < y { 1 } else { 0 });
+    }
+    {
+        insert_closure!("if", |env, args| {
+            if args.len() != 3 {
+                return Err(());
+            }
+            match try!(eval_number(env, &args[0])) {
+                0 => eval(env, &args[2]),
+                _ => eval(env, &args[1]),
+            }
+        });
     }
     mk_env(move |x| map.get(x).cloned())
 }
@@ -107,10 +123,6 @@ fn eval(env: &Env, expr: &Expr) -> Result<Value, ()> {
     match *expr {
         Expr::Number(i) => Ok(Value::Number(i)),
         Expr::Var(ref v) => env(v).ok_or(()),
-        Expr::If { ref cond, ref tru, ref fls } => match try!(eval_number(env, cond)) {
-            0 => eval(env, fls),
-            _ => eval(env, tru),
-        },
         Expr::Call { ref fun, ref args } => {
             let fun = try!(eval(env, fun));
             if let Value::Closure(ref f) = fun {
