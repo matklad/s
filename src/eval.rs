@@ -494,6 +494,15 @@ mod meta_eval_tests {
 
 
     #[test]
+    fn basic_arigh() {
+        eval_cmp("(+ 1 2)", "3");
+        eval_cmp("(- 1 2)", "-1");
+        eval_cmp("(* 2 46)", "92");
+        eval_cmp("(/ 184 2)", "92");
+    }
+
+
+    #[test]
     fn self_evaluating_empty_list() {
         eval_cmp("()", "()");
     }
