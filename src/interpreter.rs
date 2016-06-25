@@ -40,12 +40,16 @@ impl Expr {
 
 
 fn builtin() -> Env {
+    fn insert_closure<F: Fn(&Env, &[Expr]) -> Result<Value, ()> + 'static>(
+        map: &mut HashMap<String, Value>,
+        name: &str,
+        f: F
+    ) {
+        map.insert(name.to_owned(), Value::closure(f));
+    }
+
     let mut map = HashMap::new();
-    macro_rules! insert_closure {
-        ($name:expr, $cls:expr) => {
-            map.insert($name.to_owned(), Value::closure($cls));
-        }
-    };
+
     {
         let empty_env = mk_env(|_| None);
         let mut insert = |name: &str, code: &str| map.insert(
@@ -73,7 +77,7 @@ fn builtin() -> Env {
 
         macro_rules! insert_binop (
             ($name:expr, $op:expr) => {
-                insert_closure!($name, |env, args| {
+                insert_closure(&mut map, $name, |env, args| {
                     if args.len() != 2 {
                         return Err(());
                     }
@@ -92,7 +96,7 @@ fn builtin() -> Env {
         insert_binop!("<", |x, y| if x < y { 1 } else { 0 });
     }
     {
-        insert_closure!("if", |env, args| {
+        insert_closure(&mut map, "if", |env, args| {
             if args.len() != 3 {
                 return Err(());
             }
