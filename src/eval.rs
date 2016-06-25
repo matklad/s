@@ -4,10 +4,40 @@ use std::collections::HashMap;
 use sexpr::Sexpr;
 
 
+pub struct Error(&'static str);
+
+macro_rules! err (
+    ($e:expr) => { ::eval::Error($e) }
+);
+
+macro_rules! bail (
+    ($e:expr) => { return Err(err!($e)) }
+);
+
+
+impl ::std::error::Error for Error {
+    fn description(&self) -> &'static str { self.0 }
+}
+
+
+impl fmt::Debug for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+
 #[derive(Clone)]
 pub enum Value {
     Sexpr(Sexpr),
-    Closure(Rc<Fn(&Env, &[Sexpr]) -> Result<Value, ()>>)
+    Closure(Rc<Fn(&Env, &[Sexpr]) -> Result<Value, Error>>)
 }
 
 
@@ -15,7 +45,7 @@ pub type Env = Rc<Fn(&str) -> Option<Value>>;
 
 
 impl Value {
-    pub fn closure<F: Fn(&Env, &[Sexpr]) -> Result<Value, ()> + 'static>(f: F) -> Value {
+    pub fn closure<F: Fn(&Env, &[Sexpr]) -> Result<Value, Error> + 'static>(f: F) -> Value {
         Value::Closure(Rc::new(f))
     }
 
@@ -36,7 +66,7 @@ impl fmt::Display for Value {
 
 
 impl Sexpr {
-    pub fn eval(&self) -> Result<Value, ()> {
+    pub fn eval(&self) -> Result<Value, Error> {
         let env = builtin();
         eval(&env, self)
     }
@@ -44,7 +74,7 @@ impl Sexpr {
 
 
 fn builtin() -> Env {
-    fn insert_closure<F: Fn(&Env, &[Sexpr]) -> Result<Value, ()> + 'static>(
+    fn insert_closure<F: Fn(&Env, &[Sexpr]) -> Result<Value, Error> + 'static>(
         map: &mut HashMap<String, Value>,
         name: &str,
         f: F
@@ -57,13 +87,13 @@ fn builtin() -> Env {
     {
         insert_closure(&mut map, "quote", |_, args| {
             if args.len() != 1 {
-                return Err(());
+                bail!("Wrong syntax, expected `(quote form)`!")
             }
             Ok(Value::Sexpr(args[0].clone()))
         });
         insert_closure(&mut map, "if", |env, args| {
             if args.len() != 3 {
-                return Err(());
+                bail!("Wrong syntax, expected `(if cond tru fls)`!")
             }
             match try!(eval_number(env, &args[0])) {
                 0 => eval(env, &args[2]),
@@ -73,18 +103,18 @@ fn builtin() -> Env {
 
         insert_closure(&mut map, "lambda", |env, args| {
             if args.len() != 2 {
-                return Err(());
+                bail!("Wrong syntax, expected `(lambda args body)`!");
             }
             let formals: Vec<String> = if let Sexpr::List(ref args) = args[0] {
                 try!(args.iter().map(|arg| {
                     if let Sexpr::Atom(ref name) = *arg {
                         Ok(name.to_owned())
                     } else {
-                        Err(())
+                        bail!("Wrong syntax, expected atom argument!");
                     }
                 }).collect())
             } else {
-                return Err(());
+                bail!("Wrong syntax, expected arguments list!");
             };
 
             let body = args[1].clone();
@@ -94,7 +124,7 @@ fn builtin() -> Env {
                 let env = env.clone();
                 let formals = formals.clone();
                 if values.len() != formals.len() {
-                    return Err(());
+                    bail!("Wrong number of arguments supplied!");
                 }
                 let values: Vec<Value> = try!(values.iter().map(|v| eval(val_env, v)).collect());
                 let new_env: Env = Rc::new(move |y| {
@@ -109,7 +139,7 @@ fn builtin() -> Env {
         })
     }
     {
-        fn insert_sugar<F: Fn(&[Sexpr]) -> Result<Sexpr, ()> + 'static>(
+        fn insert_sugar<F: Fn(&[Sexpr]) -> Result<Sexpr, Error> + 'static>(
             map: &mut HashMap<String, Value>,
             name: &str,
             f: F
@@ -129,23 +159,23 @@ fn builtin() -> Env {
         );
         insert_sugar(&mut map, "rec", |args| {
             if args.len() != 3 {
-                return Err(());
+                bail!("Invalid syntax, expected `(rec name args body)`!")
             }
 
             let name = if let Sexpr::Atom(ref name) = args[0] {
                 Sexpr::Atom(name.clone())
             } else {
-                return Err(());
+                bail!("Invalid syntax, expected atom name!");
             };
             let formals = args[1].clone();
             let fix = if let Sexpr::List(ref names) = formals {
                 match names.len() {
                     1 => "fix",
                     2 => "fix2",
-                    _ => return Err(())
+                    _ => bail!("Expected one or two arguments for rec!")
                 }
             } else {
-                return Err(());
+                bail!("Invalid syntax, expected list of arguments!")
             };
             let body = args[2].clone();
 
@@ -165,25 +195,25 @@ fn builtin() -> Env {
 
         insert_sugar(&mut map, "let", |args| {
             if args.len() != 2 {
-                return Err(());
+                bail!("Invalid syntax, expected `(let bindings body)`!");
             }
             let mut names = vec![];
             let mut inits = vec![];
             let bindings = if let Sexpr::List(ref bindings) = args[0] {
                 bindings
             } else {
-                return Err(());
+                bail!("Invalid syntax, expected list of bindings!");
             };
 
             if bindings.len() % 2 != 0 {
-                return Err(());
+                bail!("Invalid syntax, odd number of bindings!");
             }
 
             for i in 0..bindings.len() / 2 {
                 names.push(if let Sexpr::Atom(ref name) = bindings[2 * i] {
                     Sexpr::Atom(name.clone())
                 } else {
-                    return Err(());
+                    bail!("Invalid syntax, expected atom name!");
                 });
                 inits.push(bindings[2 * i + 1].clone());
             }
@@ -230,15 +260,28 @@ fn builtin() -> Env {
     {
         use std::ops::{Add, Sub, Mul, Div};
 
+        fn insert_function<F: Fn(&[Value]) -> Result<Value, Error> + 'static>(
+            map: &mut HashMap<String, Value>,
+            name: &str,
+            f: F
+        ) {
+            insert_closure(map, name, move |env, args| {
+                let args: Vec<Value> = try!(args.iter().map(|a| eval(env, a)).collect());
+                f(&args)
+            })
+        }
+
         macro_rules! insert_binop (
             ($name:expr, $op:expr) => {
-                insert_closure(&mut map, $name, |env, args| {
+                insert_function(&mut map, $name, |args| {
                     if args.len() != 2 {
-                        return Err(());
+                        bail!("Expected two arguments for a binary operator!");
                     }
-                    let lhs = try!(eval_number(env, &args[0]));
-                    let rhs = try!(eval_number(env, &args[1]));
-                    Ok(Value::number($op(lhs, rhs)))
+                    let (lhs, rhs) = (&args[0], &args[1]);
+                    match (lhs, rhs) {
+                        (&Value::Sexpr(Sexpr::Number(lhs)), &Value::Sexpr(Sexpr::Number(rhs))) => Ok(Value::number($op(lhs, rhs))),
+                        _ => bail!("Expected numbers in a binary operator!")
+                    }
                 });
             }
         );
@@ -259,27 +302,27 @@ fn mk_env<F: Fn(&str) -> Option<Value> + 'static>(f: F) -> Env {
 }
 
 
-fn eval_number(env: &Env, expr: &Sexpr) -> Result<i64, ()> {
+fn eval_number(env: &Env, expr: &Sexpr) -> Result<i64, Error> {
     match try!(eval(env, expr)) {
         Value::Sexpr(Sexpr::Number(i)) => Ok(i),
-        _ => Err(()),
+        _ => bail!("Expected a number!"),
     }
 }
 
 
-fn eval(env: &Env, expr: &Sexpr) -> Result<Value, ()> {
+fn eval(env: &Env, expr: &Sexpr) -> Result<Value, Error> {
     match *expr {
         Sexpr::Number(i) => Ok(Value::number(i)),
-        Sexpr::Atom(ref v) => env(v).ok_or(()),
+        Sexpr::Atom(ref v) => env(v).ok_or(err!("Unbound variable!")),
         Sexpr::List(ref args) => {
             if args.is_empty() {
-                return Err(());
+                return Ok(Value::Sexpr(Sexpr::List(Vec::new())));
             }
             let fun = try!(eval(env, &args[0]));
             if let Value::Closure(ref f) = fun {
                 f(env, &args[1..])
             } else {
-                Err(())
+                bail!("Closure expected")
             }
         },
     }
@@ -317,7 +360,7 @@ mod special_test {
     fn fake_fn() {
         let closure = Value::Closure(Rc::new(|env, args| match try!(eval(env, &args[0])) {
             Value::Sexpr(Sexpr::Number(i)) => Ok(Value::number(i + 1)),
-            _ => Err(())
+            _ => bail!("Not a number!")
         }));
         let env = mk_env(move |x| if x == "f" { Some(closure.clone()) } else { None });
         assert_eq!(eval(&env, &"(f 91)".parse().unwrap()).unwrap().to_string(), "92")
@@ -342,16 +385,16 @@ mod special_test {
 #[cfg(test)]
 mod eval_tests {
     use sexpr::Sexpr;
-    use super::Value;
+    use super::{Value, Error};
 
 
-    fn eval(expr: &str) -> Result<Value, ()> {
+    fn eval(expr: &str) -> Result<Value, Error> {
         let expr: Sexpr = expr.parse().expect("Syntax error");
         expr.eval()
     }
 
 
-    fn meta_eval(expr: &str) -> Result<Value, ()> {
+    fn meta_eval(expr: &str) -> Result<Value, Error> {
         let interpreter = include_str!("eval.s");
         eval(&format!("({} '{})", interpreter, expr))
     }
@@ -359,7 +402,7 @@ mod eval_tests {
 
     fn eval_cmp(expr: &str, result: &str) {
         println!("{}", expr);
-        let actual_result = meta_eval(expr).expect("Eval Error").to_string();
+        let actual_result = eval(expr).expect("Eval Error").to_string();
         assert_eq!(result, actual_result);
     }
 
@@ -509,5 +552,11 @@ mod eval_tests {
     #[test]
     fn let_() {
         eval_cmp("(let (a 94 b 2) (- a b))", "92");
+    }
+
+
+    #[test]
+    fn self_evaluating_empty_list() {
+        eval_cmp("()", "()");
     }
 }
