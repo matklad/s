@@ -6,7 +6,7 @@ use sexpr::Sexpr;
 
 #[derive(Clone)]
 pub enum Value {
-    Number(i64),
+    Sexpr(Sexpr),
     Closure(Rc<Fn(&Env, &[Sexpr]) -> Result<Value, ()>>)
 }
 
@@ -18,13 +18,17 @@ impl Value {
     pub fn closure<F: Fn(&Env, &[Sexpr]) -> Result<Value, ()> + 'static>(f: F) -> Value {
         Value::Closure(Rc::new(f))
     }
+
+    pub fn number(i: i64) -> Value {
+        Value::Sexpr(Sexpr::Number(i))
+    }
 }
 
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Value::Number(i) => i.fmt(f),
+            Value::Sexpr(ref s) => s.fmt(f),
             Value::Closure(_) => "#closure".fmt(f),
         }
     }
@@ -132,7 +136,7 @@ fn builtin() -> Env {
                     }
                     let lhs = try!(eval_number(env, &args[0]));
                     let rhs = try!(eval_number(env, &args[1]));
-                    Ok(Value::Number($op(lhs, rhs)))
+                    Ok(Value::number($op(lhs, rhs)))
                 });
             }
         );
@@ -155,7 +159,7 @@ fn mk_env<F: Fn(&str) -> Option<Value> + 'static>(f: F) -> Env {
 
 fn eval_number(env: &Env, expr: &Sexpr) -> Result<i64, ()> {
     match try!(eval(env, expr)) {
-        Value::Number(i) => Ok(i),
+        Value::Sexpr(Sexpr::Number(i)) => Ok(i),
         _ => Err(()),
     }
 }
@@ -163,7 +167,7 @@ fn eval_number(env: &Env, expr: &Sexpr) -> Result<i64, ()> {
 
 fn eval(env: &Env, expr: &Sexpr) -> Result<Value, ()> {
     match *expr {
-        Sexpr::Number(i) => Ok(Value::Number(i)),
+        Sexpr::Number(i) => Ok(Value::number(i)),
         Sexpr::Atom(ref v) => env(v).ok_or(()),
         Sexpr::List(ref args) => {
             if args.is_empty() {
@@ -215,7 +219,7 @@ mod tests {
 
     #[test]
     fn var() {
-        let env = mk_env(|x| if x == "foo" { Some(Value::Number(92)) } else { None });
+        let env = mk_env(|x| if x == "foo" { Some(Value::number(92)) } else { None });
         assert_eq!(eval(&env, &parse("foo")).unwrap().to_string(), "92")
     }
 
@@ -223,7 +227,7 @@ mod tests {
     #[test]
     fn var_arif() {
         let initial = builtin();
-        let env = mk_env(move |x| Some(Value::Number(match x {
+        let env = mk_env(move |x| Some(Value::number(match x {
             "x" => 1,
             "y" => 2,
             "z" => 3,
@@ -246,7 +250,7 @@ mod tests {
     #[test]
     fn fake_fn() {
         let closure = Value::Closure(Rc::new(|env, args| match try!(eval(env, &args[0])) {
-            Value::Number(i) => Ok(Value::Number(i + 1)),
+            Value::Sexpr(Sexpr::Number(i)) => Ok(Value::number(i + 1)),
             _ => Err(())
         }));
         let env = mk_env(move |x| if x == "f" { Some(closure.clone()) } else { None });
