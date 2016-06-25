@@ -1,7 +1,7 @@
 use std::fmt;
 use std::rc::Rc;
 use std::collections::HashMap;
-use ast::{Expr, BinOpKind};
+use ast::Expr;
 
 
 #[derive(Clone)]
@@ -30,37 +30,60 @@ impl fmt::Display for Value {
 
 impl Expr {
     pub fn eval(&self) -> Result<Value, ()> {
-        let build_in = {
-            let mut m = HashMap::new();
-            {
-                let empty_env = mk_env(|_| None);
-                let mut insert = |name: &str, code: &str| m.insert(
-                    name.to_owned(),
-                    eval(&code.parse::<Expr>().unwrap(), &empty_env).unwrap()
-                );
+        let env = builtin();
+        eval(self, &env)
+    }
+}
 
-                insert("fix", "
+
+fn builtin() -> Env {
+    let mut map = HashMap::new();
+    {
+        let empty_env = mk_env(|_| None);
+        let mut insert = |name: &str, code: &str| map.insert(
+            name.to_owned(),
+            eval(&code.parse::<Expr>().unwrap(), &empty_env).unwrap()
+        );
+        insert("fix", "
 ((lambda (q) (lambda (f) (f (lambda (x)
   (((q q) f) x)))))
 
  (lambda (q) (lambda (f) (f (lambda (x)
   (((q q) f) x))))))"
-                );
+        );
 
-                insert("fix2", "
+        insert("fix2", "
 ((lambda (q) (lambda (f) (f (lambda (x y)
   (((q q) f) x y)))))
 
  (lambda (q) (lambda (f) (f (lambda (x y)
   (((q q) f) x y))))))"
-                );
-            }
-            m
-        };
-
-        let env = mk_env(move |x| build_in.get(x).cloned());
-        eval(self, &env)
+        );
     }
+    {
+        use std::ops::{Add, Sub, Mul, Div};
+
+        macro_rules! insert_binop (
+            ($name:expr, $op:expr) => {
+                map.insert($name.to_string(), Value::closure(|args| {
+                    if args.len() != 2 {
+                        return Err(());
+                    }
+                    let lhs = if let Value::Number(x) = args[0] { x } else { return Err(()); };
+                    let rhs = if let Value::Number(x) = args[1] { x } else { return Err(()); };
+                    Ok(Value::Number($op(lhs, rhs)))
+                }));
+            }
+        );
+
+        insert_binop!("+", Add::add);
+        insert_binop!("-", Sub::sub);
+        insert_binop!("*", Mul::mul);
+        insert_binop!("/", Div::div);
+        insert_binop!("=", |x, y| if x == y { 1 } else { 0 });
+        insert_binop!("<", |x, y| if x < y { 1 } else { 0 });
+    }
+    mk_env(move |x| map.get(x).cloned())
 }
 
 
@@ -72,30 +95,18 @@ fn mk_env<F: Fn(&str) -> Option<Value> + 'static>(f: F) -> Env {
 }
 
 
-fn eval(expr: &Expr, env: &Env) -> Result<Value, ()> {
-    fn eval_number(expr: &Expr, env: &Env) -> Result<i64, ()> {
-        match try!(eval(expr, env)) {
-            Value::Number(i) => Ok(i),
-            _ => Err(()),
-        }
+fn eval_number(expr: &Expr, env: &Env) -> Result<i64, ()> {
+    match try!(eval(expr, env)) {
+        Value::Number(i) => Ok(i),
+        _ => Err(()),
     }
+}
 
+
+fn eval(expr: &Expr, env: &Env) -> Result<Value, ()> {
     match *expr {
         Expr::Number(i) => Ok(Value::Number(i)),
         Expr::Var(ref v) => env(v).ok_or(()),
-        Expr::BinOp { kind, ref lhs, ref rhs } => {
-            let i = try!(eval_number(lhs, env));
-            let j = try!(eval_number(rhs, env));
-            let result = match kind {
-                BinOpKind::Add => i + j,
-                BinOpKind::Sub => i - j,
-                BinOpKind::Mul => i * j,
-                BinOpKind::Div => i / j,
-                BinOpKind::Eq => if i == j { 1 } else { 0 },
-                BinOpKind::Lt => if i < j { 1 } else { 0 },
-            };
-            Ok(Value::Number(result))
-        }
         Expr::If { ref cond, ref tru, ref fls } => match try!(eval_number(cond, env)) {
             0 => eval(fls, env),
             _ => eval(tru, env),
@@ -137,7 +148,7 @@ fn eval(expr: &Expr, env: &Env) -> Result<Value, ()> {
 mod tests {
     use std::rc::Rc;
     use ast::Expr;
-    use super::{eval, Value, mk_env};
+    use super::{eval, Value, mk_env, builtin};
 
 
     fn parse(expr: &str) -> Expr {
@@ -175,11 +186,12 @@ mod tests {
 
     #[test]
     fn var_arif() {
-        let env = mk_env(|x| Some(Value::Number(match x {
+        let initial = builtin();
+        let env = mk_env(move |x| Some(Value::Number(match x {
             "x" => 1,
             "y" => 2,
             "z" => 3,
-            _ => return None
+            _ => return initial(x)
         })));
 
         assert_eq!(eval(&parse("(/ (+ x y) z)"), &env).unwrap().to_string(), "1")

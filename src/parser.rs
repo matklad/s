@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use ast::{Expr, BinOpKind};
+use ast::Expr;
 use sexpr::Sexpr;
 
 
@@ -27,24 +27,8 @@ fn read_sexpr(sexpr: &Sexpr) -> Result<Expr, ()> {
                 return Err(());
             }
 
-            let binop = |kind, args: &[Sexpr]| {
-                if args.len() != 3 {
-                    Err(())
-                } else {
-                    let lhs = try!(read_sexpr(&args[1]));
-                    let rhs = try!(read_sexpr(&args[2]));
-                    Ok(Expr::binop(kind, lhs, rhs))
-                }
-            };
-
             if let Sexpr::Atom(ref op) = args[0] {
                 match op.as_ref() {
-                    "+" => return binop(BinOpKind::Add, &args),
-                    "-" => return binop(BinOpKind::Sub, &args),
-                    "*" => return binop(BinOpKind::Mul, &args),
-                    "/" => return binop(BinOpKind::Div, &args),
-                    "=" => return binop(BinOpKind::Eq, &args),
-                    "<" => return binop(BinOpKind::Lt, &args),
                     "lambda" => return {
                         if args.len() != 3 {
                             return Err(());
