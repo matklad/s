@@ -27,28 +27,6 @@ fn read_sexpr(sexpr: &Sexpr) -> Result<Expr, ()> {
                 return Err(());
             }
 
-            if let Sexpr::Atom(ref op) = args[0] {
-                match op.as_ref() {
-                    "lambda" => return {
-                        if args.len() != 3 {
-                            return Err(());
-                        }
-
-                        let formals: Vec<String> = if let Sexpr::List(ref elements) = args[1] {
-                            try!(elements.iter().map(|arg| match *arg {
-                                Sexpr::Atom(ref name) => Ok(name.to_owned()),
-                                _ => Err(()),
-                            }).collect())
-                        } else {
-                            return Err(());
-                        };
-                        let body = try!(read_sexpr(&args[2]));
-                        Ok(Expr::fun(formals, body))
-                    },
-                    _ => {}
-                }
-            }
-
             let fun = try!(read_sexpr(&args[0]));
             let actuals: Vec<Expr> = try!(args[1..].iter().map(|a| read_sexpr(a)).collect());
             Ok(Expr::call(fun, actuals))
@@ -96,7 +74,7 @@ mod tests {
 
     #[test]
     fn lambda() {
-        idempotence("(lambda (x) (* x x))")
+        idempotence("(lambda (x ) (* x x))")
     }
 
 

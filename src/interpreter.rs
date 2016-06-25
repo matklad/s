@@ -51,10 +51,66 @@ fn builtin() -> Env {
     let mut map = HashMap::new();
 
     {
-        let empty_env = mk_env(|_| None);
+        insert_closure(&mut map, "if", |env, args| {
+            if args.len() != 3 {
+                return Err(());
+            }
+            match try!(eval_number(env, &args[0])) {
+                0 => eval(env, &args[2]),
+                _ => eval(env, &args[1]),
+            }
+        });
+
+        insert_closure(&mut map, "lambda", |env, args| {
+            if args.len() != 2 {
+                return Err(());
+            }
+            let formals: Vec<String> = if let Expr::Call { ref fun, ref args } = args[0] {
+                let first = if let Expr::Var(ref name) = **fun {
+                    name.to_owned()
+                } else {
+                    return Err(());
+                };
+                let mut formals = vec![first];
+                for arg in args {
+                    if let Expr::Var(ref name) = *arg {
+                        formals.push(name.to_owned());
+                    } else {
+                        return Err(());
+                    }
+                }
+                formals
+            } else {
+                return Err(());
+            };
+
+            let body = args[1].clone();
+            let env = env.clone();
+
+            Ok(Value::closure(move |val_env, values| {
+                let env = env.clone();
+                let formals = formals.clone();
+                if values.len() != formals.len() {
+                    return Err(());
+                }
+                let values: Vec<Value> = try!(values.iter().map(|v| eval(val_env, v)).collect());
+                let new_env: Env = Rc::new(move |y| {
+                    if let Some(i) = formals.iter().position(|x| x == y) {
+                        Some(values[i].clone())
+                    } else {
+                        env(y)
+                    }
+                });
+                eval(&new_env, &body)
+            }))
+        })
+    }
+    {
+        let bare_map = map.clone();
+        let bare_env = mk_env(move |x| bare_map.get(x).cloned());
         let mut insert = |name: &str, code: &str| map.insert(
             name.to_owned(),
-            eval(&empty_env, &code.parse::<Expr>().unwrap()).unwrap()
+            eval(&bare_env, &code.parse::<Expr>().unwrap()).unwrap()
         );
         insert("fix", "
 ((lambda (q) (lambda (f) (f (lambda (x)
@@ -95,17 +151,6 @@ fn builtin() -> Env {
         insert_binop!("=", |x, y| if x == y { 1 } else { 0 });
         insert_binop!("<", |x, y| if x < y { 1 } else { 0 });
     }
-    {
-        insert_closure(&mut map, "if", |env, args| {
-            if args.len() != 3 {
-                return Err(());
-            }
-            match try!(eval_number(env, &args[0])) {
-                0 => eval(env, &args[2]),
-                _ => eval(env, &args[1]),
-            }
-        });
-    }
     mk_env(move |x| map.get(x).cloned())
 }
 
@@ -135,27 +180,6 @@ fn eval(env: &Env, expr: &Expr) -> Result<Value, ()> {
                 Err(())
             }
         },
-        Expr::Fun { ref args, ref body } => {
-            let env = env.clone();
-            let args = args.to_owned();
-            let body = (**body).clone();
-            Ok(Value::closure(move |val_env, values| {
-                let env = env.clone();
-                let args = args.clone();
-                if values.len() != args.len() {
-                    return Err(());
-                }
-                let values: Vec<Value> = try!(values.iter().map(|v| eval(val_env, v)).collect());
-                let new_env: Env = Rc::new(move |y| {
-                    if let Some(i) = args.iter().position(|x| x == y) {
-                        Some(values[i].clone())
-                    } else {
-                        env(y)
-                    }
-                });
-                eval(&new_env, &body)
-            }))
-        }
     }
 }
 
