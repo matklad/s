@@ -2,7 +2,7 @@ use std::str::FromStr;
 use std::fmt;
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Sexpr {
     Number(i64),
     Atom(String),

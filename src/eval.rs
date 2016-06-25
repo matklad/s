@@ -310,8 +310,19 @@ fn builtin() -> Env {
         insert_binop!("-", Sub::sub);
         insert_binop!("*", Mul::mul);
         insert_binop!("/", Div::div);
-        insert_binop!("=", |x, y| if x == y { 1 } else { 0 });
         insert_binop!("<", |x, y| if x < y { 1 } else { 0 });
+
+        insert_function(&mut map, "=", |args| {
+            if args.len() != 2 {
+                bail!("Expected two arguments for comparison");
+            }
+            Ok(match (&args[0], &args[1]) {
+                (&Value::Sexpr(ref lhs), &Value::Sexpr(ref rhs)) => Value::number(
+                    if lhs == rhs { 1 } else { 0 }
+                ),
+                _ => Value::number(0)
+            })
+        });
 
         insert_function(&mut map, "is_number", |args| {
             if args.len() != 1 {
@@ -587,6 +598,14 @@ mod eval_tests {
     #[test]
     fn self_evaluating_empty_list() {
         eval_cmp("()", "()");
+    }
+
+
+    #[test]
+    fn polymorphic_equality() {
+        eval_cmp("(= () ())", "1");
+        eval_cmp("(= '(1 2 (3 4)) '(1 2 (3 4)))", "1");
+        eval_cmp("(= '(1 2 (3 4)) '(1 2 (3 4 5)))", "0");
     }
 
 

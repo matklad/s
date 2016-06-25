@@ -1,3 +1,4 @@
 (lambda (expr)
-    (if (is_number expr) expr ())
-)
+  (cond
+    (is_number expr) expr
+    (= () expr) expr))
