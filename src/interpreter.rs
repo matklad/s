@@ -34,7 +34,7 @@ impl fmt::Display for Value {
 impl Expr {
     pub fn eval(&self) -> Result<Value, ()> {
         let env = builtin();
-        eval(self, &env)
+        eval(&env, self)
     }
 }
 
@@ -45,7 +45,7 @@ fn builtin() -> Env {
         let empty_env = mk_env(|_| None);
         let mut insert = |name: &str, code: &str| map.insert(
             name.to_owned(),
-            eval(&code.parse::<Expr>().unwrap(), &empty_env).unwrap()
+            eval(&empty_env, &code.parse::<Expr>().unwrap()).unwrap()
         );
         insert("fix", "
 ((lambda (q) (lambda (f) (f (lambda (x)
@@ -72,8 +72,8 @@ fn builtin() -> Env {
                     if args.len() != 2 {
                         return Err(());
                     }
-                    let lhs = try!(eval_number(&args[0], env));
-                    let rhs = try!(eval_number(&args[1], env));
+                    let lhs = try!(eval_number(env, &args[0]));
+                    let rhs = try!(eval_number(env, &args[1]));
                     Ok(Value::Number($op(lhs, rhs)))
                 }));
             }
@@ -95,24 +95,24 @@ fn mk_env<F: Fn(&str) -> Option<Value> + 'static>(f: F) -> Env {
 }
 
 
-fn eval_number(expr: &Expr, env: &Env) -> Result<i64, ()> {
-    match try!(eval(expr, env)) {
+fn eval_number(env: &Env, expr: &Expr) -> Result<i64, ()> {
+    match try!(eval(env, expr)) {
         Value::Number(i) => Ok(i),
         _ => Err(()),
     }
 }
 
 
-fn eval(expr: &Expr, env: &Env) -> Result<Value, ()> {
+fn eval(env: &Env, expr: &Expr) -> Result<Value, ()> {
     match *expr {
         Expr::Number(i) => Ok(Value::Number(i)),
         Expr::Var(ref v) => env(v).ok_or(()),
-        Expr::If { ref cond, ref tru, ref fls } => match try!(eval_number(cond, env)) {
-            0 => eval(fls, env),
-            _ => eval(tru, env),
+        Expr::If { ref cond, ref tru, ref fls } => match try!(eval_number(env, cond)) {
+            0 => eval(env, fls),
+            _ => eval(env, tru),
         },
         Expr::Call { ref fun, ref args } => {
-            let fun = try!(eval(fun, env));
+            let fun = try!(eval(env, fun));
             if let Value::Closure(ref f) = fun {
                 f(env, args)
             } else {
@@ -129,7 +129,7 @@ fn eval(expr: &Expr, env: &Env) -> Result<Value, ()> {
                 if values.len() != args.len() {
                     return Err(());
                 }
-                let values: Vec<Value> = try!(values.iter().map(|v| eval(v, val_env)).collect());
+                let values: Vec<Value> = try!(values.iter().map(|v| eval(val_env, v)).collect());
                 let new_env: Env = Rc::new(move |y| {
                     if let Some(i) = args.iter().position(|x| x == y) {
                         Some(values[i].clone())
@@ -137,7 +137,7 @@ fn eval(expr: &Expr, env: &Env) -> Result<Value, ()> {
                         env(y)
                     }
                 });
-                eval(&body, &new_env)
+                eval(&new_env, &body)
             }))
         }
     }
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn var() {
         let env = mk_env(|x| if x == "foo" { Some(Value::Number(92)) } else { None });
-        assert_eq!(eval(&parse("foo"), &env).unwrap().to_string(), "92")
+        assert_eq!(eval(&env, &parse("foo")).unwrap().to_string(), "92")
     }
 
 
@@ -194,7 +194,7 @@ mod tests {
             _ => return initial(x)
         })));
 
-        assert_eq!(eval(&parse("(/ (+ x y) z)"), &env).unwrap().to_string(), "1")
+        assert_eq!(eval(&env, &parse("(/ (+ x y) z)")).unwrap().to_string(), "1")
     }
 
 
@@ -209,12 +209,12 @@ mod tests {
 
     #[test]
     fn fake_fn() {
-        let closure = Value::Closure(Rc::new(|env, args| match try!(eval(&args[0], env)) {
+        let closure = Value::Closure(Rc::new(|env, args| match try!(eval(env, &args[0])) {
             Value::Number(i) => Ok(Value::Number(i + 1)),
             _ => Err(())
         }));
         let env = mk_env(move |x| if x == "f" { Some(closure.clone()) } else { None });
-        assert_eq!(eval(&parse("(f 91)"), &env).unwrap().to_string(), "92")
+        assert_eq!(eval(&env, &parse("(f 91)")).unwrap().to_string(), "92")
     }
 
 
