@@ -7,12 +7,15 @@ use ast::Expr;
 #[derive(Clone)]
 pub enum Value {
     Number(i64),
-    Closure(Rc<Fn(Vec<Value>) -> Result<Value, ()>>)
+    Closure(Rc<Fn(&Env, &[Expr]) -> Result<Value, ()>>)
 }
 
 
+pub type Env = Rc<Fn(&str) -> Option<Value>>;
+
+
 impl Value {
-    pub fn closure<F: Fn(Vec<Value>) -> Result<Value, ()> + 'static>(f: F) -> Value {
+    pub fn closure<F: Fn(&Env, &[Expr]) -> Result<Value, ()> + 'static>(f: F) -> Value {
         Value::Closure(Rc::new(f))
     }
 }
@@ -65,12 +68,12 @@ fn builtin() -> Env {
 
         macro_rules! insert_binop (
             ($name:expr, $op:expr) => {
-                map.insert($name.to_string(), Value::closure(|args| {
+                map.insert($name.to_string(), Value::closure(|env, args| {
                     if args.len() != 2 {
                         return Err(());
                     }
-                    let lhs = if let Value::Number(x) = args[0] { x } else { return Err(()); };
-                    let rhs = if let Value::Number(x) = args[1] { x } else { return Err(()); };
+                    let lhs = try!(eval_number(&args[0], env));
+                    let rhs = try!(eval_number(&args[1], env));
                     Ok(Value::Number($op(lhs, rhs)))
                 }));
             }
@@ -85,9 +88,6 @@ fn builtin() -> Env {
     }
     mk_env(move |x| map.get(x).cloned())
 }
-
-
-type Env = Rc<Fn(&str) -> Option<Value>>;
 
 
 fn mk_env<F: Fn(&str) -> Option<Value> + 'static>(f: F) -> Env {
@@ -113,9 +113,8 @@ fn eval(expr: &Expr, env: &Env) -> Result<Value, ()> {
         },
         Expr::Call { ref fun, ref args } => {
             let fun = try!(eval(fun, env));
-            let args = try!(args.iter().map(|arg| eval(arg, env)).collect());
             if let Value::Closure(ref f) = fun {
-                f(args)
+                f(env, args)
             } else {
                 Err(())
             }
@@ -124,12 +123,13 @@ fn eval(expr: &Expr, env: &Env) -> Result<Value, ()> {
             let env = env.clone();
             let args = args.to_owned();
             let body = (**body).clone();
-            Ok(Value::closure(move |values| {
+            Ok(Value::closure(move |val_env, values| {
                 let env = env.clone();
                 let args = args.clone();
                 if values.len() != args.len() {
                     return Err(());
                 }
+                let values: Vec<Value> = try!(values.iter().map(|v| eval(v, val_env)).collect());
                 let new_env: Env = Rc::new(move |y| {
                     if let Some(i) = args.iter().position(|x| x == y) {
                         Some(values[i].clone())
@@ -209,7 +209,7 @@ mod tests {
 
     #[test]
     fn fake_fn() {
-        let closure = Value::Closure(Rc::new(|args| match args[0] {
+        let closure = Value::Closure(Rc::new(|env, args| match try!(eval(&args[0], env)) {
             Value::Number(i) => Ok(Value::Number(i + 1)),
             _ => Err(())
         }));
