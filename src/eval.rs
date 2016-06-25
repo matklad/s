@@ -324,6 +324,17 @@ fn builtin() -> Env {
             })
         });
 
+        insert_function(&mut map, "not", |args| {
+            if args.len() != 1 {
+                bail!("Expected one argument for `not`!");
+            }
+
+            match args[0] {
+                Value::Sexpr(Sexpr::Number(i)) => Ok(Value::number(if i == 0 { 1 } else { 0 })),
+                _ => bail!("Not a number in `not`!")
+            }
+        });
+
         insert_function(&mut map, "is_number", |args| {
             if args.len() != 1 {
                 bail!("Expected one argument for `is_number`!");
@@ -696,5 +707,13 @@ mod eval_tests {
                             (car (car (cdr (cdr xs))))))
               (caaddr '((a b) (b c) (c d))))
         ", "c");
+    }
+
+
+    #[test]
+    fn not() {
+        eval_cmp("(not 0 )", "1");
+        eval_cmp("(not 1 )", "0");
+        eval_cmp("(not 92)", "0");
     }
 }
