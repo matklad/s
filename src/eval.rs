@@ -677,26 +677,6 @@ mod meta_eval_tests {
               (caaddr '((a b) (b c) (c d))))
         ", "c");
     }
-}
-
-
-#[cfg(test)]
-mod eval_tests {
-    use sexpr::Sexpr;
-    use error::Error;
-    use super::Value;
-
-
-    fn eval(expr: &str) -> Result<Value, Error> {
-        let expr: Sexpr = expr.parse().expect("Syntax error");
-        expr.eval()
-    }
-
-
-    fn eval_cmp(expr: &str, result: &str) {
-        let actual_result = eval(expr).expect("Eval Error").to_string();
-        assert_eq!(result, actual_result);
-    }
 
 
     #[test]

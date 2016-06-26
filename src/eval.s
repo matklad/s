@@ -178,7 +178,10 @@
 
         (list 'fix fix_closure)
         (list 'fix2 fix2_closure)
-        (list 'quote (lambda (eval env forms) (car forms))))
+
+        (list 'quote (lambda (eval env forms) (car forms)))
+
+        (list 'list (function (lambda (x) x))))
       )
     )
 
