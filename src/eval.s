@@ -12,6 +12,14 @@
         (cons (f (car xs)) (map f (cdr xs))))
     )
 
+    zip (rec zip (xs ys)
+      (if (= () xs)
+        ()
+        (cons
+          (list (car xs) (car ys))
+          (zip  (cdr xs) (cdr ys))))
+    )
+
     lookup (rec find (x xs)
       (cond
         (= () xs)        ()
@@ -47,14 +55,25 @@
       )
       (list 'lambda (lambda (leval lenv largs)
         (let (
-          formal (caar largs)
-          body   (cadr largs)
+          formals (car  largs)
+          body    (cadr largs)
         )
 
         (lambda (ceval cenv cargs)
           (let (
-            actual (ceval cenv (car cargs))
-            benv (lambda (y) (if (= y formal) actual (lenv y)))
+            tagged_actuals (map
+              (lambda (x) (list (ceval cenv x) ()))
+              cargs
+            )
+
+            mapping (zip formals tagged_actuals)
+
+            benv (lambda (y)
+              (let (param (lookup y mapping))
+              (if (= () param)
+                (lenv y)
+                (car param)))
+            )
           )
 
           (leval benv body)))))

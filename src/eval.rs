@@ -14,7 +14,7 @@ pub enum Value {
     Closure(Rc<Fn(&Env, &[Sexpr]) -> Result<Value, Error>>)
 }
 
-macro_rules! extract(
+macro_rules! extract (
     ($varname:ident, $e:expr, $err:expr) => {
         if let Value::$varname(ref x) = $e {
             x
@@ -505,6 +505,12 @@ mod meta_eval_tests {
         eval_cmp("((lambda (x) x) 92)", "92");
         eval_cmp("((lambda (x) (* x x)) 92)", "8464")
     }
+
+
+    #[test]
+    fn multiarg_fun() {
+        eval_cmp("((lambda (x y) (- x y)) 94 2)", "92")
+    }
 }
 
 
@@ -610,12 +616,6 @@ mod eval_tests {
           ))
   7 3)
         ", "35");
-    }
-
-
-    #[test]
-    fn sum() {
-        eval_cmp("((lambda (x y) (- x y)) 94 2)", "92")
     }
 
 
