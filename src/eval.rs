@@ -14,6 +14,15 @@ pub enum Value {
     Closure(Rc<Fn(&Env, &[Sexpr]) -> Result<Value, Error>>)
 }
 
+macro_rules! extract(
+    ($varname:ident, $e:expr, $err:expr) => {
+        if let Value::$varname(ref x) = $e {
+            x
+        } else {
+            bail!($err)
+        }
+    }
+);
 
 pub type Env = Rc<Fn(&str) -> Option<Value>>;
 
@@ -300,6 +309,7 @@ fn builtin() -> Env {
             }
         );
 
+
         insert_binop!("+", Add::add);
         insert_binop!("-", Sub::sub);
         insert_binop!("*", Mul::mul);
@@ -318,10 +328,8 @@ fn builtin() -> Env {
                 bail!("Expected one argument for `not`!");
             }
 
-            match args[0] {
-                Value::Number(i) => Ok(Value::from_bool(i == 0)),
-                _ => bail!("Not a number in `not`!")
-            }
+            let &i = extract!(Number, args[0], "Not a number in `not`!");
+            Ok(Value::from_bool(i == 0))
         });
 
         insert_function(&mut map, "is_number", |args| {
@@ -348,11 +356,7 @@ fn builtin() -> Env {
             if args.len() != 1 {
                 bail!("Expected one argument for `car`!");
             }
-            let ls = if let Value::List(ref ls) = args[0] {
-                ls
-            } else {
-                bail!("Expected list in `car`!");
-            };
+            let ls = extract!(List, args[0], "Expected list in `car`!");
 
             Ok(if ls.is_empty() {
                 Value::List(Vec::new())
@@ -365,11 +369,7 @@ fn builtin() -> Env {
             if args.len() != 1 {
                 bail!("Expected one argument for `cdr`!");
             }
-            let ls = if let Value::List(ref ls) = args[0] {
-                ls
-            } else {
-                bail!("Expected list in `car`!");
-            };
+            let ls = extract!(List, args[0], "Expected list in `cdr`!");
 
             Ok(Value::List(if ls.is_empty() {
                 Vec::new()
@@ -383,13 +383,9 @@ fn builtin() -> Env {
                 bail!("Expected two arguments for `cons`!");
             }
             let hd = args[0].clone();
-            let tl = if let Value::List(ref ls) = args[1] {
-                ls
-            } else {
-                bail!("Expected list in `cons`!");
-            };
+            let ls = extract!(List, args[1], "Expected list in `cons`!");
             let mut result = vec![hd];
-            result.extend(tl.iter().cloned());
+            result.extend(ls.iter().cloned());
             Ok(Value::List(result))
         });
 
@@ -424,11 +420,8 @@ fn eval(env: &Env, expr: &Sexpr) -> Result<Value, Error> {
                 return Ok(Value::List(Vec::new()));
             }
             let fun = try!(eval(env, &args[0]));
-            if let Value::Closure(ref f) = fun {
-                f(env, &args[1..])
-            } else {
-                bail!("Closure expected")
-            }
+            let closure = extract!(Closure, fun, "Closure expected!");
+            closure(env, &args[1..])
         },
     }
 }
