@@ -20,11 +20,19 @@
           (zip  (cdr xs) (cdr ys))))
     )
 
+    union (rec union (xs ys)
+      (if (= () xs) ys (union (cdr xs) (cons (car xs) ys)))
+    )
+
     lookup (rec find (x xs)
       (cond
         (= () xs)        ()
         (= x (caar xs))  (cadar xs)
         1                (find x (cdr xs)))
+    )
+
+    mapping_to_env (lambda (mapping)
+      (lambda (x) (lookup x mapping))
     )
 
     function (lambda (f) (lambda (eval env args)
@@ -37,13 +45,7 @@
 
     binop (lambda (op) (function2 op))
 
-    initial_env (lambda (v) (lookup v (list
-      (list '+ (binop +))
-      (list '- (binop -))
-      (list '* (binop *))
-      (list '/ (binop /))
-      (list '= (binop =))
-      (list '< (binop <))
+    special_forms (list
       (list 'if (lambda (eval env args)
         (let (
           cond_ (car   args)
@@ -76,11 +78,30 @@
             )
           )
 
-          (leval benv body)))))
+        (leval benv body)))))
       )
+    )
 
+    builtin_fns (lambda (eval)
+      (let (
+        fix_closure (eval (mapping_to_env special_forms)
+          '((lambda (q) (lambda (f) (f (lambda (x)
+            (((q q) f) x)))))
 
-    )))
+            (lambda (q) (lambda (f) (f (lambda (x)
+           (((q q) f) x))))))
+        )
+      )
+      (list
+        (list '+ (binop +))
+        (list '- (binop -))
+        (list '* (binop *))
+        (list '/ (binop /))
+        (list '= (binop =))
+        (list '< (binop <))
+        (list 'fix fix_closure))
+      )
+    )
 
     eval (rec eval (env expr)
       (cond
@@ -95,4 +116,11 @@
     )
 )
 
-(lambda (expr) (eval initial_env expr)))
+(lambda (expr)
+  (let (
+    mapping (union special_forms (builtin_fns eval))
+    env (mapping_to_env mapping)
+  )
+
+  (eval env expr))
+))

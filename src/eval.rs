@@ -544,6 +544,33 @@ mod meta_eval_tests {
 5)
         ", "120");
     }
+
+
+    #[test]
+    fn fix_fact() {
+        eval_cmp("
+((fix (lambda (F)
+    (lambda (n) (if (= 0 n) 1 (* n (F (- n 1)))))))
+6)
+        ", "720");
+    }
+
+
+    #[test]
+    fn fix_comb() {
+        eval_cmp("
+(((fix (lambda (C)
+       (lambda (n) (lambda (k)
+                   (if (= k 0) 1
+                       (if (= k n) 1
+                           (+
+                            ((C (- n 1)) k)
+                            ((C (- n 1)) (- k 1))))
+                       )))))
+  7)
+ 3)
+       ", "35")
+    }
 }
 
 
@@ -569,32 +596,9 @@ mod eval_tests {
     #[test]
     fn fact() {
         eval_cmp("
-((fix (lambda (F)
-    (lambda (n) (if (= 0 n) 1 (* n (F (- n 1)))))))
-6)
-        ", "720");
-
-        eval_cmp("
 ((rec F (n) (if (= 0 n) 1 (* n (F (- n 1)))))
 6)
         ", "720");
-    }
-
-
-    #[test]
-    fn comb() {
-        eval_cmp("
-(((fix (lambda (C)
-       (lambda (n) (lambda (k)
-                   (if (= k 0) 1
-                       (if (= k n) 1
-                           (+
-                            ((C (- n 1)) k)
-                            ((C (- n 1)) (- k 1))))
-                       )))))
-  7)
- 3)
-       ", "35")
     }
 
 
