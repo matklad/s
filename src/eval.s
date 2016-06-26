@@ -43,7 +43,9 @@
       (function (lambda (args) (f (car args) (cadr args))))
     )
 
-    binop (lambda (op) (function2 op))
+    lift2 (lambda (op) (function2 op))
+
+    lift (lambda (op) (function (lambda (args) (op (car args)))))
 
     special_forms (list
       (list 'if (lambda (eval env args)
@@ -125,12 +127,19 @@
       )
 
       (list
-        (list '+ (binop +))
-        (list '- (binop -))
-        (list '* (binop *))
-        (list '/ (binop /))
-        (list '= (binop =))
-        (list '< (binop <))
+        (list '+ (lift2 +))
+        (list '- (lift2 -))
+        (list '* (lift2 *))
+        (list '/ (lift2 /))
+        (list '= (lift2 =))
+        (list '< (lift2 <))
+
+        (list 'not (lift not))
+
+        (list 'car  (lift  car))
+        (list 'cdr  (lift  cdr))
+        (list 'cons (lift2 cons))
+
         (list 'fix fix_closure)
         (list 'fix2 fix2_closure)
         (list 'quote (lambda (eval env forms) (car forms))))

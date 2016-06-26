@@ -628,6 +628,28 @@ mod meta_eval_tests {
         eval_cmp("(= '(1 2 (3 4)) '(1 2 (3 4)))", "1");
         eval_cmp("(= '(1 2 (3 4)) '(1 2 (3 4 5)))", "0");
     }
+
+
+    #[test]
+    fn cadavr() {
+        eval_cmp("(car '(a b c))", "a");
+        eval_cmp("(cdr '(a b c))", "(b c)");
+    }
+
+
+    #[test]
+    fn not() {
+        eval_cmp("(not 0 )", "1");
+        eval_cmp("(not 1 )", "0");
+        eval_cmp("(not 92)", "0");
+    }
+
+
+    #[test]
+    fn cons() {
+        eval_cmp("(cons 1 '(2 3))", "(1 2 3)");
+        eval_cmp("(cons () ())", "(())");
+    }
 }
 
 
@@ -651,6 +673,16 @@ mod eval_tests {
 
 
     #[test]
+    fn caaddr() {
+        eval_cmp("
+            (let (caaddr (lambda (xs)
+                            (car (car (cdr (cdr xs))))))
+              (caaddr '((a b) (b c) (c d))))
+        ", "c");
+    }
+
+
+    #[test]
     fn let_() {
         eval_cmp("(let (a 94 b 2) (- a b))", "92");
     }
@@ -668,36 +700,9 @@ mod eval_tests {
 
 
     #[test]
-    fn cadavr() {
-        eval_cmp("(car '(a b c))", "a");
-        eval_cmp("(cdr '(a b c))", "(b c)");
-        eval_cmp("
-            (let (caaddr (lambda (xs)
-                            (car (car (cdr (cdr xs))))))
-              (caaddr '((a b) (b c) (c d))))
-        ", "c");
-    }
-
-
-    #[test]
-    fn not() {
-        eval_cmp("(not 0 )", "1");
-        eval_cmp("(not 1 )", "0");
-        eval_cmp("(not 92)", "0");
-    }
-
-
-    #[test]
     fn list() {
         eval_cmp("(= (list 1 2 3) '(1 2 3))", "1");
         eval_cmp("(list (lambda (x) x))", "(#closure)");
-    }
-
-
-    #[test]
-    fn cons() {
-        eval_cmp("(cons 1 '(2 3))", "(1 2 3)");
-        eval_cmp("(cons () ())", "(())");
     }
 }
 
