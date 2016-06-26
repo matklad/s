@@ -1,14 +1,16 @@
 use std::fmt;
 use std::rc::Rc;
 use std::collections::HashMap;
-use sexpr::Sexpr;
+use sexpr::{Sexpr, join_to};
 
 use error::Error;
 
 
 #[derive(Clone)]
 pub enum Value {
-    Sexpr(Sexpr),
+    Number(i64),
+    Atom(String),
+    List(Vec<Value>),
     Closure(Rc<Fn(&Env, &[Sexpr]) -> Result<Value, Error>>)
 }
 
@@ -22,7 +24,32 @@ impl Value {
     }
 
     pub fn number(i: i64) -> Value {
-        Value::Sexpr(Sexpr::Number(i))
+        Value::Number(i)
+    }
+
+    pub fn from_bool(b: bool) -> Value {
+        Value::number(if b { 1 } else { 0 })
+    }
+
+    pub fn from_sexpr(sexpr: &Sexpr) -> Value {
+        match *sexpr {
+            Sexpr::Number(i) => Value::Number(i),
+            Sexpr::Atom(ref a) => Value::Atom(a.clone()),
+            Sexpr::List(ref xs) => Value::List(xs.iter().map(Value::from_sexpr).collect()),
+        }
+    }
+}
+
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Value) -> bool {
+        use self::Value::*;
+        match (self, other) {
+            (&Number(l), &Number(r)) => l == r,
+            (&Atom(ref l), &Atom(ref r)) => l == r,
+            (&List(ref l), &List(ref r)) => l == r,
+            (_, _) => false
+        }
     }
 }
 
@@ -30,8 +57,10 @@ impl Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Value::Sexpr(ref s) => s.fmt(f),
+            Value::Number(i) => i.fmt(f),
+            Value::Atom(ref a) => a.fmt(f),
             Value::Closure(_) => "#closure".fmt(f),
+            Value::List(ref s) => join_to(s.iter(), f, "(", " ", ")"),
         }
     }
 }
@@ -61,7 +90,7 @@ fn builtin() -> Env {
             if args.len() != 1 {
                 bail!("Wrong syntax, expected `(quote form)`!")
             }
-            Ok(Value::Sexpr(args[0].clone()))
+            Ok(Value::from_sexpr(&args[0]))
         });
 
         insert_closure(&mut map, "cond", |env, args| {
@@ -264,7 +293,7 @@ fn builtin() -> Env {
                     }
                     let (lhs, rhs) = (&args[0], &args[1]);
                     match (lhs, rhs) {
-                        (&Value::Sexpr(Sexpr::Number(lhs)), &Value::Sexpr(Sexpr::Number(rhs))) => Ok(Value::number($op(lhs, rhs))),
+                        (&Value::Number(lhs), &Value::Number(rhs)) => Ok(Value::number($op(lhs, rhs))),
                         _ => bail!("Expected numbers in a binary operator!")
                     }
                 });
@@ -281,12 +310,7 @@ fn builtin() -> Env {
             if args.len() != 2 {
                 bail!("Expected two arguments for comparison");
             }
-            Ok(match (&args[0], &args[1]) {
-                (&Value::Sexpr(ref lhs), &Value::Sexpr(ref rhs)) => Value::number(
-                    if lhs == rhs { 1 } else { 0 }
-                ),
-                _ => Value::number(0)
-            })
+            Ok(Value::from_bool(args[0] == args[1]))
         });
 
         insert_function(&mut map, "not", |args| {
@@ -295,7 +319,7 @@ fn builtin() -> Env {
             }
 
             match args[0] {
-                Value::Sexpr(Sexpr::Number(i)) => Ok(Value::number(if i == 0 { 1 } else { 0 })),
+                Value::Number(i) => Ok(Value::from_bool(i == 0)),
                 _ => bail!("Not a number in `not`!")
             }
         });
@@ -305,40 +329,40 @@ fn builtin() -> Env {
                 bail!("Expected one argument for `is_number`!");
             }
 
-            Ok(Value::number(if let Value::Sexpr(Sexpr::Number(_)) = args[0] { 1 } else { 0 }))
+            Ok(Value::number(if let Value::Number(_) = args[0] { 1 } else { 0 }))
         });
 
         insert_function(&mut map, "car", |args| {
             if args.len() != 1 {
                 bail!("Expected one argument for `car`!");
             }
-            let ls = if let Value::Sexpr(Sexpr::List(ref ls)) = args[0] {
+            let ls = if let Value::List(ref ls) = args[0] {
                 ls
             } else {
                 bail!("Expected list in `car`!");
             };
 
-            Ok(Value::Sexpr(if ls.is_empty() {
-                Sexpr::List(Vec::new())
+            Ok(if ls.is_empty() {
+                Value::List(Vec::new())
             } else {
                 ls[0].clone()
-            }))
+            })
         });
 
         insert_function(&mut map, "cdr", |args| {
             if args.len() != 1 {
                 bail!("Expected one argument for `cdr`!");
             }
-            let ls = if let Value::Sexpr(Sexpr::List(ref ls)) = args[0] {
+            let ls = if let Value::List(ref ls) = args[0] {
                 ls
             } else {
                 bail!("Expected list in `car`!");
             };
 
-            Ok(Value::Sexpr(if ls.is_empty() {
-                Sexpr::List(Vec::new())
+            Ok(Value::List(if ls.is_empty() {
+                Vec::new()
             } else {
-                Sexpr::List(ls[1..].iter().cloned().collect())
+                ls[1..].iter().cloned().collect()
             }))
         });
     }
@@ -353,7 +377,7 @@ fn mk_env<F: Fn(&str) -> Option<Value> + 'static>(f: F) -> Env {
 
 fn eval_number(env: &Env, expr: &Sexpr) -> Result<i64, Error> {
     match try!(eval(env, expr)) {
-        Value::Sexpr(Sexpr::Number(i)) => Ok(i),
+        Value::Number(i) => Ok(i),
         _ => bail!("Expected a number!"),
     }
 }
@@ -365,7 +389,7 @@ fn eval(env: &Env, expr: &Sexpr) -> Result<Value, Error> {
         Sexpr::Atom(ref v) => env(v).ok_or(err!("Unbound variable!")),
         Sexpr::List(ref args) => {
             if args.is_empty() {
-                return Ok(Value::Sexpr(Sexpr::List(Vec::new())));
+                return Ok(Value::List(Vec::new()));
             }
             let fun = try!(eval(env, &args[0]));
             if let Value::Closure(ref f) = fun {
@@ -408,7 +432,7 @@ mod special_test {
     #[test]
     fn fake_fn() {
         let closure = Value::Closure(Rc::new(|env, args| match try!(eval(env, &args[0])) {
-            Value::Sexpr(Sexpr::Number(i)) => Ok(Value::number(i + 1)),
+            Value::Number(i) => Ok(Value::number(i + 1)),
             _ => bail!("Not a number!")
         }));
         let env = mk_env(move |x| if x == "f" { Some(closure.clone()) } else { None });

@@ -27,20 +27,29 @@ impl fmt::Display for Sexpr {
         match *self {
             Sexpr::Number(x) => x.fmt(f),
             Sexpr::Atom(ref s) => s.fmt(f),
-            Sexpr::List(ref xs) => {
-                try!('('.fmt(f));
-                let mut first = true;
-                for x in xs {
-                    if !first {
-                        try!(' '.fmt(f));
-                    }
-                    try!(x.fmt(f));
-                    first = false;
-                }
-                ')'.fmt(f)
-            }
+            Sexpr::List(ref xs) => join_to(xs.iter(), f, "(", " ", ")")
         }
     }
+}
+
+
+pub fn join_to<D: fmt::Display, I: Iterator<Item = D>>(
+    xs: I,
+    f: &mut fmt::Formatter,
+    start: &str, sep: &str, end: &str
+) -> fmt::Result {
+    use ::std::fmt::Display;
+
+    try!(start.fmt(f));
+    let mut first = true;
+    for x in xs {
+        if !first {
+            try!(sep.fmt(f));
+        }
+        try!(x.fmt(f));
+        first = false;
+    }
+    end.fmt(f)
 }
 
 
@@ -113,6 +122,7 @@ mod tests {
         idempotence("((()))");
         idempotence("(+ (* 1 2) (^ 3 4))");
     }
+
 
     #[test]
     fn quote() {
