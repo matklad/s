@@ -1,5 +1,5 @@
 (let (
-    abort (lambda () (/ 0 0))
+    abort (lambda (arg) ((trace (list 'abort arg)) (/ 0 0)))
 
     cadr (lambda (xs) (car (cdr xs)))
     caar (lambda (xs) (car (car xs)))
@@ -33,8 +33,11 @@
         1                (find x (cdr xs)))
     )
 
-    mapping_to_env (lambda (mapping)
-      (lambda (x) (lookup x mapping))
+    mapping_to_env (lambda (mapping) (lambda (x)
+      (let (res (lookup x mapping))
+        (if (= () res) (abort (list 'unbound x))
+        res)
+      ))
     )
 
     function (lambda (f) (lambda (eval env args)
@@ -52,7 +55,7 @@
     special_forms (list
       (list 'cond (lambda (eval env args)
         ((rec go (clauses)
-            (if (= () clauses) (abort)
+            (if (= () clauses) (abort 'cond)
             (let (
               cond_ (car  clauses)
               expr  (cadr clauses)
@@ -171,6 +174,10 @@
         (list '< (lift2 <))
 
         (list 'not (lift not))
+
+        (list 'is_number (lift is_number))
+        (list 'is_atom (lift is_atom))
+        (list 'trace (lift trace))
 
         (list 'car  (lift  car))
         (list 'cdr  (lift  cdr))

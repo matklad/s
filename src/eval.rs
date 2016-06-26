@@ -440,15 +440,29 @@ mod meta_eval_tests {
     }
 
 
-    fn meta_eval(expr: &str) -> Result<Value, Error> {
-        let interpreter = include_str!("eval.s");
-        eval(&format!("({} '{})", interpreter, expr))
-    }
-
-
     fn eval_cmp(expr: &str, result: &str) {
-        let actual_result = meta_eval(expr).expect("Eval Error").to_string();
-        assert_eq!(result, actual_result);
+        use std::thread;
+
+        let interpreter = include_str!("eval.s");
+        let eval_result = eval(expr)
+            .expect("Eval Error").to_string();
+
+        let meta_eval_result = eval(&format!("({} '{})", interpreter, expr))
+            .expect("Meta Eval Error").to_string();
+
+        let expr = expr.to_owned();
+
+        let meta_meta_eval_result = thread::Builder::new()
+            .stack_size(1024 * 1024 * 100) // We need a HUGE stack for this one ;)
+            .spawn(move || {
+                eval(&format!("({} '({} '{}))", interpreter, interpreter, expr))
+                    .expect("Meta Eval Error").to_string()
+            }).unwrap().join().unwrap();
+
+
+        assert_eq!(result, eval_result);
+        assert_eq!(result, meta_eval_result);
+        assert_eq!(result, meta_meta_eval_result);
     }
 
 
