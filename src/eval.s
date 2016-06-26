@@ -10,18 +10,18 @@
              (cond
                (= () xs)        ()
                (= x (caar xs))  (cadar xs)
-               1 (find x (cdr xs)))
+               1                (find x (cdr xs)))
     )
 
     dispatch_binop (lambda (op)
-      (cond
-        (= op '+) +
-        (= op '-) -
-        (= op '*) *
-        (= op '/) /
-        (= op '=) =
-        (= op '<) <
-        1 ())
+      (lookup op (list
+        (list '+ +)
+        (list '- -)
+        (list '* *)
+        (list '/ /)
+        (list '= =)
+        (list '< <)
+      ))
     )
 
 )

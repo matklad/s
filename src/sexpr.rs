@@ -80,9 +80,17 @@ fn parse(s: &str) -> Option<(Sexpr, &str)> {
                 return None
             };
             Some((Sexpr::List(vec![Sexpr::Atom("quote".to_owned()), expr]), leftover))
+        },
+        Some('#') => {
+            let (_, leftover) = if let Some(state) = parse(&s[1..]) {
+                state
+            } else {
+                return None
+            };
+            parse(leftover)
         }
         Some(_) => {
-            let idx = s.find(|c: char| c == '(' || c == ')' || c == '\'' || c.is_whitespace()).unwrap_or(s.len());
+            let idx = s.find(|c: char| c == '(' || c == ')' || c == '\'' || c == '#' || c.is_whitespace()).unwrap_or(s.len());
             assert!(idx > 0);
             let (atom, leftover) = s.split_at(idx);
             let expr = if let Ok(x) = atom.parse::<i64>() {
@@ -128,6 +136,13 @@ mod tests {
     fn quote() {
         let input = "'(1 2 3)";
         let expected = "(quote (1 2 3))";
+        assert_eq!(input.parse::<Sexpr>().unwrap().to_string(), expected);
+    }
+
+    #[test]
+    fn comments() {
+        let input = "(1 #2 3 #(4 (5 6)) 7)";
+        let expected = "(1 3 7)";
         assert_eq!(input.parse::<Sexpr>().unwrap().to_string(), expected);
     }
 }

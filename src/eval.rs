@@ -369,6 +369,11 @@ fn builtin() -> Env {
                 ls[1..].iter().cloned().collect()
             }))
         });
+
+        insert_function(&mut map, "trace", |args| {
+            println!("trace: {}", args[0]);
+            Ok(args[0].clone())
+        })
     }
     mk_env(move |x| map.get(x).cloned())
 }
@@ -479,7 +484,6 @@ mod meta_eval_tests {
 
 
     fn eval_cmp(expr: &str, result: &str) {
-        println!("{}", expr);
         let actual_result = meta_eval(expr).expect("Eval Error").to_string();
         assert_eq!(result, actual_result);
     }
@@ -548,7 +552,6 @@ mod eval_tests {
 
 
     fn eval_cmp(expr: &str, result: &str) {
-        println!("{}", expr);
         let actual_result = eval(expr).expect("Eval Error").to_string();
         assert_eq!(result, actual_result);
     }
