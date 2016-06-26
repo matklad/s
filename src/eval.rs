@@ -202,10 +202,8 @@ fn builtin() -> Env {
             if args.len() != 2 {
                 bail!("Invalid syntax, expected `(let bindings body)`!");
             }
-            let mut names = vec![];
-            let mut inits = vec![];
-            let bindings = if let Sexpr::List(ref bindings) = args[0] {
-                bindings
+            let mut bindings = if let Sexpr::List(ref bindings) = args[0] {
+                bindings.clone()
             } else {
                 bail!("Invalid syntax, expected list of bindings!");
             };
@@ -213,29 +211,24 @@ fn builtin() -> Env {
             if bindings.len() % 2 != 0 {
                 bail!("Invalid syntax, odd number of bindings!");
             }
-
+            bindings.reverse();
+            let mut result = args[1].clone();
             for i in 0..bindings.len() / 2 {
-                names.push(if let Sexpr::Atom(ref name) = bindings[2 * i] {
+                let init = bindings[2 * i].clone();
+                let name = if let Sexpr::Atom(ref name) = bindings[2 * i + 1] {
                     Sexpr::Atom(name.clone())
                 } else {
                     bail!("Invalid syntax, expected atom name!");
-                });
-                inits.push(bindings[2 * i + 1].clone());
+                };
+                let lambda = list!(
+                    atom!("lambda"),
+                    Sexpr::List(vec![name]),
+                    result
+                );
+                result = list!(lambda, init);
             }
 
-
-            let body = args[1].clone();
-
-            let lambda = list!(
-                atom!("lambda"),
-                Sexpr::List(names),
-                body
-            );
-
-            let mut call = vec![lambda];
-            call.extend(inits.into_iter());
-
-            Ok(Sexpr::List(call))
+            Ok(result)
         });
 
         insert_sugar(&mut map, "if", |args| {

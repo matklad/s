@@ -1,7 +1,16 @@
 (let (
 
-    cadr  (lambda (xs) (car (cdr xs)))
+    cadr (lambda (xs) (car (cdr xs)))
+    caar (lambda (xs) (car (car xs)))
+
     caddr (lambda (xs) (car (cdr (cdr xs))))
+    cadar (lambda (xs) (car (cdr (car xs))))
+
+    lookup (rec find (x xs)
+             (cond
+               (= () xs)        ()
+               (= x (caar xs))  (cadar xs)
+               1 (find x (cdr xs))))
 
     dispatch_binop (lambda (op)
       (cond
