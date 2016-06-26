@@ -378,6 +378,21 @@ fn builtin() -> Env {
             }))
         });
 
+        insert_function(&mut map, "cons", |args| {
+            if args.len() != 2 {
+                bail!("Expected two arguments for `cons`!");
+            }
+            let hd = args[0].clone();
+            let tl = if let Value::List(ref ls) = args[1] {
+                ls
+            } else {
+                bail!("Expected list in `cons`!");
+            };
+            let mut result = vec![hd];
+            result.extend(tl.iter().cloned());
+            Ok(Value::List(result))
+        });
+
         insert_function(&mut map, "trace", |args| {
             println!("trace: {}", args[0]);
             Ok(args[0].clone())
@@ -675,6 +690,13 @@ mod eval_tests {
     fn list() {
         eval_cmp("(= (list 1 2 3) '(1 2 3))", "1");
         eval_cmp("(list (lambda (x) x))", "(#closure)");
+    }
+
+
+    #[test]
+    fn cons() {
+        eval_cmp("(cons 1 '(2 3))", "(1 2 3)");
+        eval_cmp("(cons () ())", "(())");
     }
 }
 
