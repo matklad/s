@@ -6,16 +6,28 @@
     caddr (lambda (xs) (car (cdr (cdr xs))))
     cadar (lambda (xs) (car (cdr (car xs))))
 
-    lookup (rec find (x xs)
-             (cond
-               (= () xs)        ()
-               (= x (caar xs))  (cadar xs)
-               1                (find x (cdr xs)))
+    map (rec map (f xs)
+      (if (= () xs)
+        ()
+        (cons (f (car xs)) (map f (cdr xs))))
     )
 
-    binop (lambda (op) (lambda (eval env args)
-      (op (eval env (car args)) (eval env (cadr args))))
+    lookup (rec find (x xs)
+      (cond
+        (= () xs)        ()
+        (= x (caar xs))  (cadar xs)
+        1                (find x (cdr xs)))
     )
+
+    function (lambda (f) (lambda (eval env args)
+      (f (map (lambda (x) (eval env x)) args)))
+    )
+
+    function2 (lambda (f)
+      (function (lambda (args) (f (car args) (cadr args))))
+    )
+
+    binop (lambda (op) (function2 op))
 
     initial_env (lambda (v) (lookup v (list
       (list '+ (binop +))
