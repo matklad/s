@@ -511,6 +511,39 @@ mod meta_eval_tests {
     fn multiarg_fun() {
         eval_cmp("((lambda (x y) (- x y)) 94 2)", "92")
     }
+
+
+    #[test]
+    fn zeroarg_fun() {
+        eval_cmp("((lambda () 92))", "92")
+    }
+
+
+    #[test]
+    fn twice() {
+        eval_cmp("((
+            (lambda (f) (lambda (x) (f (f x))))
+            (lambda (x) (+ x 1))
+        ) 90)", "92")
+    }
+
+
+    #[test]
+    fn combinator_fact() {
+        eval_cmp("
+((
+
+((lambda (q) (lambda (f) (f (lambda (x)
+  (((q q) f) x)))))
+
+ (lambda (q) (lambda (f) (f (lambda (x)
+  (((q q) f) x))))))
+
+(lambda (F) (lambda (n) (if (= 0 n) 1 (* n (F (- n 1)))))))
+
+5)
+        ", "120");
+    }
 }
 
 
@@ -534,30 +567,7 @@ mod eval_tests {
 
 
     #[test]
-    fn twice() {
-        eval_cmp("((
-            (lambda (f) (lambda (x) (f (f x))))
-            (lambda (x) (+ x 1))
-        ) 90)", "92")
-    }
-
-
-    #[test]
     fn fact() {
-        eval_cmp("
-((
-
-((lambda (q) (lambda (f) (f (lambda (x)
-  (((q q) f) x)))))
-
- (lambda (q) (lambda (f) (f (lambda (x)
-  (((q q) f) x))))))
-
-(lambda (F) (lambda (n) (if (= 0 n) 1 (* n (F (- n 1)))))))
-
-5)
-        ", "120");
-
         eval_cmp("
 ((fix (lambda (F)
     (lambda (n) (if (= 0 n) 1 (* n (F (- n 1)))))))
@@ -625,12 +635,6 @@ mod eval_tests {
         eval_cmp("(quote (quote quote))", "(quote quote)");
         eval_cmp("'('quote)", "((quote quote))");
         eval_cmp("((lambda (x) x) '(1 2 3))", "(1 2 3)")
-    }
-
-
-    #[test]
-    fn zero_args() {
-        eval_cmp("((lambda () 92))", "92")
     }
 
 
