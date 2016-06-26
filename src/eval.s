@@ -13,13 +13,17 @@
                1                (find x (cdr xs)))
     )
 
+    binop (lambda (op) (lambda (eval args)
+      (op (eval (car args)) (eval (cadr args))))
+    )
+
     initial_env (lambda (v) (lookup v (list
-      (list '+ +)
-      (list '- -)
-      (list '* *)
-      (list '/ /)
-      (list '= =)
-      (list '< <)
+      (list '+ (binop +))
+      (list '- (binop -))
+      (list '* (binop *))
+      (list '/ (binop /))
+      (list '= (binop =))
+      (list '< (binop <))
     )))
 
     eval (rec eval (env expr)
@@ -40,14 +44,17 @@
         )
         (cond
             (is_number expr) expr
-            (is_atom expr) (env expr)
             (= () expr) expr
+            (is_atom expr) (env expr)
             1 (let (
                 builtin (dispatch_builtin (car expr))
               )
               (cond
                 (not (= builtin ())) (builtin (cdr expr))
-                1 ((eval env (car expr)) (eval env (cadr expr)) (eval env (caddr expr)))
+                1 (let (fn   (car expr)
+                        args (cdr expr))
+                    ((eval env fn) (lambda (e) (eval env e)) args))
+
                 )))))
 )
 
