@@ -620,6 +620,14 @@ mod meta_eval_tests {
         eval_cmp("'('quote)", "((quote quote))");
         eval_cmp("((lambda (x) x) '(1 2 3))", "(1 2 3)")
     }
+
+
+    #[test]
+    fn polymorphic_equality() {
+        eval_cmp("(= () ())", "1");
+        eval_cmp("(= '(1 2 (3 4)) '(1 2 (3 4)))", "1");
+        eval_cmp("(= '(1 2 (3 4)) '(1 2 (3 4 5)))", "0");
+    }
 }
 
 
@@ -645,14 +653,6 @@ mod eval_tests {
     #[test]
     fn let_() {
         eval_cmp("(let (a 94 b 2) (- a b))", "92");
-    }
-
-
-    #[test]
-    fn polymorphic_equality() {
-        eval_cmp("(= () ())", "1");
-        eval_cmp("(= '(1 2 (3 4)) '(1 2 (3 4)))", "1");
-        eval_cmp("(= '(1 2 (3 4)) '(1 2 (3 4 5)))", "0");
     }
 
 
