@@ -1,7 +1,9 @@
 (let (
+    abort (lambda () (/ 0 0))
 
     cadr (lambda (xs) (car (cdr xs)))
     caar (lambda (xs) (car (car xs)))
+    cddr (lambda (xs) (cdr (cdr xs)))
 
     caddr (lambda (xs) (car (cdr (cdr xs))))
     cadar (lambda (xs) (car (cdr (car xs))))
@@ -57,6 +59,23 @@
 
         (eval env (if (eval env cond_) tru fls))))
       )
+
+      (list 'cond (lambda (eval env args)
+        ((rec go (clauses)
+            (if (= () clauses) (abort)
+            (let (
+              cond_ (car  clauses)
+              expr  (cadr clauses)
+              rest  (cddr clauses)
+            )
+
+            (if (eval env cond_) (eval env expr)
+
+            (go rest)))))
+          args
+        ))
+      )
+
       (list 'lambda (lambda (leval lenv largs)
         (let (
           formals (car  largs)

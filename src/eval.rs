@@ -650,6 +650,17 @@ mod meta_eval_tests {
         eval_cmp("(cons 1 '(2 3))", "(1 2 3)");
         eval_cmp("(cons () ())", "(())");
     }
+
+
+    #[test]
+    fn cond() {
+        eval_cmp("(cond
+                    0 0
+                    (- 2 2) 1
+                    (+ 0 1) (+ 1 1)
+                    (/ 0 0) 92)",
+                 "2");
+    }
 }
 
 
@@ -685,17 +696,6 @@ mod eval_tests {
     #[test]
     fn let_() {
         eval_cmp("(let (a 94 b 2) (- a b))", "92");
-    }
-
-
-    #[test]
-    fn cond() {
-        eval_cmp("(cond
-                    0 0
-                    (- 2 2) 1
-                    (+ 0 1) (+ 1 1)
-                    (/ 0 0) 92)",
-                 "2");
     }
 
 
