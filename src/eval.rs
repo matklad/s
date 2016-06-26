@@ -420,59 +420,6 @@ fn eval(env: &Env, expr: &Sexpr) -> Result<Value, Error> {
 
 
 #[cfg(test)]
-mod special_test {
-    use std::rc::Rc;
-    use sexpr::Sexpr;
-    use super::{mk_env, Value, eval, builtin};
-
-
-    fn eval_invalid(expr: &str) {
-        let expr = expr.parse::<Sexpr>().unwrap();
-        assert!(expr.eval().is_err());
-    }
-
-
-    #[test]
-    fn invalid() {
-        eval_invalid("foo");
-        eval_invalid("(1 2)");
-    }
-
-
-    #[test]
-    fn var() {
-        let env = mk_env(|x| if x == "foo" { Some(Value::number(92)) } else { None });
-        assert_eq!(eval(&env, &"foo".parse().unwrap()).unwrap().to_string(), "92")
-    }
-
-
-    #[test]
-    fn fake_fn() {
-        let closure = Value::Closure(Rc::new(|env, args| match try!(eval(env, &args[0])) {
-            Value::Number(i) => Ok(Value::number(i + 1)),
-            _ => bail!("Not a number!")
-        }));
-        let env = mk_env(move |x| if x == "f" { Some(closure.clone()) } else { None });
-        assert_eq!(eval(&env, &"(f 91)".parse().unwrap()).unwrap().to_string(), "92")
-    }
-
-
-    #[test]
-    fn var_arif() {
-        let initial = builtin();
-        let env = mk_env(move |x| Some(Value::number(match x {
-            "x" => 1,
-            "y" => 2,
-            "z" => 3,
-            _ => return initial(x)
-        })));
-
-        assert_eq!(eval(&env, &"(/ (+ x y) z)".parse().unwrap()).unwrap().to_string(), "1")
-    }
-}
-
-
-#[cfg(test)]
 mod meta_eval_tests {
     use sexpr::Sexpr;
     use error::Error;
@@ -723,9 +670,64 @@ mod eval_tests {
         eval_cmp("(not 92)", "0");
     }
 
+
     #[test]
     fn list() {
         eval_cmp("(= (list 1 2 3) '(1 2 3))", "1");
         eval_cmp("(list (lambda (x) x))", "(#closure)");
     }
 }
+
+
+#[cfg(test)]
+mod special_test {
+    use std::rc::Rc;
+    use sexpr::Sexpr;
+    use super::{mk_env, Value, eval, builtin};
+
+
+    fn eval_invalid(expr: &str) {
+        let expr = expr.parse::<Sexpr>().unwrap();
+        assert!(expr.eval().is_err());
+    }
+
+
+    #[test]
+    fn invalid() {
+        eval_invalid("foo");
+        eval_invalid("(1 2)");
+    }
+
+
+    #[test]
+    fn var() {
+        let env = mk_env(|x| if x == "foo" { Some(Value::number(92)) } else { None });
+        assert_eq!(eval(&env, &"foo".parse().unwrap()).unwrap().to_string(), "92")
+    }
+
+
+    #[test]
+    fn fake_fn() {
+        let closure = Value::Closure(Rc::new(|env, args| match try!(eval(env, &args[0])) {
+            Value::Number(i) => Ok(Value::number(i + 1)),
+            _ => bail!("Not a number!")
+        }));
+        let env = mk_env(move |x| if x == "f" { Some(closure.clone()) } else { None });
+        assert_eq!(eval(&env, &"(f 91)".parse().unwrap()).unwrap().to_string(), "92")
+    }
+
+
+    #[test]
+    fn var_arif() {
+        let initial = builtin();
+        let env = mk_env(move |x| Some(Value::number(match x {
+            "x" => 1,
+            "y" => 2,
+            "z" => 3,
+            _ => return initial(x)
+        })));
+
+        assert_eq!(eval(&env, &"(/ (+ x y) z)".parse().unwrap()).unwrap().to_string(), "1")
+    }
+}
+
