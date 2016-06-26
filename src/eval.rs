@@ -332,6 +332,10 @@ fn builtin() -> Env {
             Ok(Value::number(if let Value::Number(_) = args[0] { 1 } else { 0 }))
         });
 
+        insert_function(&mut map, "list", |args| {
+            Ok(Value::List(args.iter().cloned().collect()))
+        });
+
         insert_function(&mut map, "car", |args| {
             if args.len() != 1 {
                 bail!("Expected one argument for `car`!");
@@ -706,5 +710,11 @@ mod eval_tests {
         eval_cmp("(not 0 )", "1");
         eval_cmp("(not 1 )", "0");
         eval_cmp("(not 92)", "0");
+    }
+
+    #[test]
+    fn list() {
+        eval_cmp("(= (list 1 2 3) '(1 2 3))", "1");
+        eval_cmp("(list (lambda (x) x))", "(#closure)");
     }
 }
