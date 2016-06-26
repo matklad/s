@@ -24,6 +24,15 @@
       (list '/ (binop /))
       (list '= (binop =))
       (list '< (binop <))
+      (list 'if (lambda (eval args)
+        (let (
+          cond_ (car   args)
+          tru   (cadr  args)
+          fls   (caddr args)
+        )
+        (eval (if (eval cond_) tru fls))
+        )))
+
     )))
 
     eval (rec eval (env expr)
@@ -47,15 +56,10 @@
             (= () expr) expr
             (is_atom expr) (env expr)
             1 (let (
-                builtin (dispatch_builtin (car expr))
+                fn   (car expr)
+                args (cdr expr)
               )
-              (cond
-                (not (= builtin ())) (builtin (cdr expr))
-                1 (let (fn   (car expr)
-                        args (cdr expr))
-                    ((eval env fn) (lambda (e) (eval env e)) args))
-
-                )))))
+              ((eval env fn) (lambda (e) (eval env e)) args)))))
 )
 
 (lambda (expr) (eval initial_env expr)))
