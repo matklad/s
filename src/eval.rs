@@ -524,6 +524,12 @@ mod meta_eval_tests {
         eval_cmp("(< 0 0)", "0");
         eval_cmp("(< 0 1)", "1");
     }
+
+
+    #[test]
+    fn if_() {
+        eval_cmp("(if (< 1 2) 92 62)", "92")
+    }
 }
 
 
@@ -559,12 +565,6 @@ mod eval_tests {
             (lambda (f) (lambda (x) (f (f x))))
             (lambda (x) (+ x 1))
         ) 90)", "92")
-    }
-
-
-    #[test]
-    fn if_() {
-        eval_cmp("(if (< 1 2) 92 62)", "92")
     }
 
 

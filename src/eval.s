@@ -10,7 +10,8 @@
              (cond
                (= () xs)        ()
                (= x (caar xs))  (cadar xs)
-               1 (find x (cdr xs))))
+               1 (find x (cdr xs)))
+    )
 
     dispatch_binop (lambda (op)
       (cond
@@ -20,15 +21,35 @@
         (= op '/) /
         (= op '=) =
         (= op '<) <
-        1 ()
-      ))
+        1 ())
+    )
 
 )
+
 (rec eval (expr)
-  (cond
+(let (
+    dispatch_builtin (lambda (f)
+      (cond
+        (= f 'if)
+          (lambda (args)
+            (let (
+              cond_ (car   args)
+              tru   (cadr  args)
+              fls   (caddr args)
+            )
+            (eval (if (eval cond_) tru fls))))
+
+        1 ())
+    )
+)
+(cond
     (is_number expr) expr
     (= () expr) expr
-    1 (let (op (dispatch_binop (car expr)))
+    1 (let (
+        binop (dispatch_binop (car expr))
+        builtin (dispatch_builtin (car expr))
+      )
       (cond
-        (not (= op ())) (op (eval (cadr expr)) (eval (caddr expr)))
-        )))))
+        (not (= binop ())) (binop (eval (cadr expr)) (eval (caddr expr)))
+        (not (= builtin ())) (builtin (cdr expr))
+        ))))))
