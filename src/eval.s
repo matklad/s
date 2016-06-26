@@ -84,14 +84,25 @@
 
     builtin_fns (lambda (eval)
       (let (
-        fix_closure (eval (mapping_to_env special_forms)
+        bare_env (mapping_to_env special_forms)
+
+        fix_closure (eval bare_env
           '((lambda (q) (lambda (f) (f (lambda (x)
             (((q q) f) x)))))
 
             (lambda (q) (lambda (f) (f (lambda (x)
            (((q q) f) x))))))
         )
+
+        fix2_closure (eval bare_env
+          '((lambda (q) (lambda (f) (f (lambda (x y)
+            (((q q) f) x y)))))
+
+            (lambda (q) (lambda (f) (f (lambda (x y)
+           (((q q) f) x y))))))
+        )
       )
+
       (list
         (list '+ (binop +))
         (list '- (binop -))
@@ -99,7 +110,8 @@
         (list '/ (binop /))
         (list '= (binop =))
         (list '< (binop <))
-        (list 'fix fix_closure))
+        (list 'fix fix_closure)
+        (list 'fix2 fix2_closure))
       )
     )
 

@@ -571,6 +571,22 @@ mod meta_eval_tests {
  3)
        ", "35")
     }
+
+
+    #[test]
+    fn fix2_comb() {
+        eval_cmp("
+((fix2 (lambda (C)
+         (lambda (n k)
+           (if (= k 0) 1
+               (if (= k n) 1
+                   (+
+                    (C (- n 1) k)
+                    (C (- n 1) (- k 1))))
+               ))))
+  7 3)
+        ", "35");
+    }
 }
 
 
@@ -599,22 +615,6 @@ mod eval_tests {
 ((rec F (n) (if (= 0 n) 1 (* n (F (- n 1)))))
 6)
         ", "720");
-    }
-
-
-    #[test]
-    fn comb2() {
-        eval_cmp("
-((fix2 (lambda (C)
-         (lambda (n k)
-           (if (= k 0) 1
-               (if (= k n) 1
-                   (+
-                    (C (- n 1) k)
-                    (C (- n 1) (- k 1))))
-               ))))
-  7 3)
-        ", "35");
     }
 
 
