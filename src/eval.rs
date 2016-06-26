@@ -507,14 +507,22 @@ mod meta_eval_tests {
 
 
     #[test]
+    fn self_evaluating_empty_list() {
+        eval_cmp("()", "()");
+    }
+
+
+    #[test]
     fn recursive_arith() {
         eval_cmp("(- (* (+ 1 2) (/ 6 2)) 3)", "6");
     }
 
 
     #[test]
-    fn self_evaluating_empty_list() {
-        eval_cmp("()", "()");
+    fn binops() {
+        eval_cmp("(= 6 (- (* (+ 1 2) (/ 6 2)) 3))", "1");
+        eval_cmp("(< 0 0)", "0");
+        eval_cmp("(< 0 1)", "1");
     }
 }
 
@@ -535,14 +543,6 @@ mod eval_tests {
         println!("{}", expr);
         let actual_result = eval(expr).expect("Eval Error").to_string();
         assert_eq!(result, actual_result);
-    }
-
-
-    #[test]
-    fn binops() {
-        eval_cmp("(= 6 (- (* (+ 1 2) (/ 6 2)) 3))", "1");
-        eval_cmp("(< 0 0)", "0");
-        eval_cmp("(< 0 1)", "1");
     }
 
 
