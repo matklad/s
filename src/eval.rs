@@ -661,6 +661,22 @@ mod meta_eval_tests {
                     (/ 0 0) 92)",
                  "2");
     }
+
+
+    #[test]
+    fn let_() {
+        eval_cmp("(let (a 94 b 2) (- a b))", "92");
+    }
+
+
+    #[test]
+    fn caaddr() {
+        eval_cmp("
+            (let (caaddr (lambda (xs)
+                            (car (car (cdr (cdr xs))))))
+              (caaddr '((a b) (b c) (c d))))
+        ", "c");
+    }
 }
 
 
@@ -680,22 +696,6 @@ mod eval_tests {
     fn eval_cmp(expr: &str, result: &str) {
         let actual_result = eval(expr).expect("Eval Error").to_string();
         assert_eq!(result, actual_result);
-    }
-
-
-    #[test]
-    fn caaddr() {
-        eval_cmp("
-            (let (caaddr (lambda (xs)
-                            (car (car (cdr (cdr xs))))))
-              (caaddr '((a b) (b c) (c d))))
-        ", "c");
-    }
-
-
-    #[test]
-    fn let_() {
-        eval_cmp("(let (a 94 b 2) (- a b))", "92");
     }
 
 

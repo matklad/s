@@ -116,8 +116,29 @@
         (list
           'cond
           (car forms) (cadr forms)
-          1 (caddr forms)
-        ))))
+          1           (caddr forms)
+        )))
+      )
+
+      (list 'let (macro (lambda (forms)
+        (let (
+          bindings (car  forms)
+          body     (cadr forms)
+        )
+
+        ((rec go (bindings)
+          (if (= () bindings) body
+          (let (
+            name (car  bindings)
+            init (cadr bindings)
+            rest (cddr bindings)
+          )
+          (list
+            (list 'lambda (list name) (go rest))
+            init
+          )))
+        ) bindings))))
+      )
     )
 
     builtin_fns (lambda (eval)
