@@ -490,6 +490,13 @@ mod meta_eval_tests {
     fn if_() {
         eval_cmp("(if (< 1 2) 92 62)", "92")
     }
+
+
+    #[test]
+    fn simple_functions() {
+        eval_cmp("((lambda (x) x) 92)", "92");
+        eval_cmp("((lambda (x) (* x x)) 92)", "8464")
+    }
 }
 
 
@@ -509,13 +516,6 @@ mod eval_tests {
     fn eval_cmp(expr: &str, result: &str) {
         let actual_result = eval(expr).expect("Eval Error").to_string();
         assert_eq!(result, actual_result);
-    }
-
-
-    #[test]
-    fn simple_functions() {
-        eval_cmp("((lambda (x) x) 92)", "92");
-        eval_cmp("((lambda (x) (* x x)) 92)", "8464")
     }
 
 
