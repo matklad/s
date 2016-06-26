@@ -50,16 +50,6 @@
     lift (lambda (op) (function (lambda (args) (op (car args)))))
 
     special_forms (list
-      (list 'if (lambda (eval env args)
-        (let (
-          cond_ (car   args)
-          tru   (cadr  args)
-          fls   (caddr args)
-        )
-
-        (eval env (if (eval env cond_) tru fls))))
-      )
-
       (list 'cond (lambda (eval env args)
         ((rec go (clauses)
             (if (= () clauses) (abort)
@@ -119,10 +109,16 @@
         (list
           fixn
           (list 'lambda (list name) (list 'lambda formals body))
-        ))
+        ))))
+      )
 
-      ))
-    ))
+      (list 'if (macro (lambda (forms)
+        (list
+          'cond
+          (car forms) (cadr forms)
+          1 (caddr forms)
+        ))))
+    )
 
     builtin_fns (lambda (eval)
       (let (
