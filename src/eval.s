@@ -82,6 +82,27 @@
       )
     )
 
+    macro (lambda (m) (lambda (eval env forms)
+      (eval env (m forms))
+    ))
+
+    macros (list
+      (list 'rec (macro (lambda (forms)
+        (let (
+          name    (car   forms)
+          formals (cadr  forms)
+          body    (caddr forms)
+          fixn    (if (= () (cdr formals)) 'fix 'fix2)
+        )
+
+        (list
+          fixn
+          (list 'lambda (list name) (list 'lambda formals body))
+        ))
+
+      ))
+    ))
+
     builtin_fns (lambda (eval)
       (let (
         bare_env (mapping_to_env special_forms)
@@ -130,7 +151,7 @@
 
 (lambda (expr)
   (let (
-    mapping (union special_forms (builtin_fns eval))
+    mapping (union (union special_forms (builtin_fns eval)) macros)
     env (mapping_to_env mapping)
   )
 

@@ -587,6 +587,30 @@ mod meta_eval_tests {
   7 3)
         ", "35");
     }
+
+
+    #[test]
+    fn rec_fact() {
+        eval_cmp("
+((rec F (n) (if (= 0 n) 1 (* n (F (- n 1)))))
+6)
+        ", "720");
+    }
+
+
+    #[test]
+    fn rec_comb() {
+        eval_cmp("
+((rec C (n k)
+      (if (= k 0) 1
+          (if (= k n) 1
+              (+
+               (C (- n 1) k)
+               (C (- n 1) (- k 1))))
+          ))
+  7 3)
+        ", "35");
+    }
 }
 
 
@@ -606,30 +630,6 @@ mod eval_tests {
     fn eval_cmp(expr: &str, result: &str) {
         let actual_result = eval(expr).expect("Eval Error").to_string();
         assert_eq!(result, actual_result);
-    }
-
-
-    #[test]
-    fn fact() {
-        eval_cmp("
-((rec F (n) (if (= 0 n) 1 (* n (F (- n 1)))))
-6)
-        ", "720");
-    }
-
-
-    #[test]
-    fn comb3() {
-        eval_cmp("
-((rec C (n k)
-      (if (= k 0) 1
-          (if (= k n) 1
-              (+
-               (C (- n 1) k)
-               (C (- n 1) (- k 1))))
-          ))
-  7 3)
-        ", "35");
     }
 
 
