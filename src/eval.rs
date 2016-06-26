@@ -611,6 +611,15 @@ mod meta_eval_tests {
   7 3)
         ", "35");
     }
+
+
+    #[test]
+    fn quoting() {
+        eval_cmp("(quote (lambda (x) x))", "(lambda (x) x)");
+        eval_cmp("(quote (quote quote))", "(quote quote)");
+        eval_cmp("'('quote)", "((quote quote))");
+        eval_cmp("((lambda (x) x) '(1 2 3))", "(1 2 3)")
+    }
 }
 
 
@@ -630,15 +639,6 @@ mod eval_tests {
     fn eval_cmp(expr: &str, result: &str) {
         let actual_result = eval(expr).expect("Eval Error").to_string();
         assert_eq!(result, actual_result);
-    }
-
-
-    #[test]
-    fn quoting() {
-        eval_cmp("(quote (lambda (x) x))", "(lambda (x) x)");
-        eval_cmp("(quote (quote quote))", "(quote quote)");
-        eval_cmp("'('quote)", "((quote quote))");
-        eval_cmp("((lambda (x) x) '(1 2 3))", "(1 2 3)")
     }
 
 

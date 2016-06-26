@@ -132,7 +132,8 @@
         (list '= (binop =))
         (list '< (binop <))
         (list 'fix fix_closure)
-        (list 'fix2 fix2_closure))
+        (list 'fix2 fix2_closure)
+        (list 'quote (lambda (eval env forms) (car forms))))
       )
     )
 
