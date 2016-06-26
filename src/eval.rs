@@ -332,6 +332,14 @@ fn builtin() -> Env {
             Ok(Value::number(if let Value::Number(_) = args[0] { 1 } else { 0 }))
         });
 
+        insert_function(&mut map, "is_atom", |args| {
+            if args.len() != 1 {
+                bail!("Expected one argument for `is_atom`!");
+            }
+
+            Ok(Value::number(if let Value::Atom(_) = args[0] { 1 } else { 0 }))
+        });
+
         insert_function(&mut map, "list", |args| {
             Ok(Value::List(args.iter().cloned().collect()))
         });

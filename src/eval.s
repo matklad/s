@@ -13,43 +13,42 @@
                1                (find x (cdr xs)))
     )
 
-    dispatch_binop (lambda (op)
-      (lookup op (list
-        (list '+ +)
-        (list '- -)
-        (list '* *)
-        (list '/ /)
-        (list '= =)
-        (list '< <)
-      ))
-    )
+    initial_env (lambda (v) (lookup v (list
+      (list '+ +)
+      (list '- -)
+      (list '* *)
+      (list '/ /)
+      (list '= =)
+      (list '< <)
+    )))
 
-)
+    eval (rec eval (env expr)
+        (let (
+            dispatch_builtin (lambda (f)
+              (cond
+                (= f 'if)
+                  (lambda (args)
+                    (let (
+                      cond_ (car   args)
+                      tru   (cadr  args)
+                      fls   (caddr args)
+                    )
+                    (eval env (if (eval env cond_) tru fls))))
 
-(rec eval (expr)
-(let (
-    dispatch_builtin (lambda (f)
-      (cond
-        (= f 'if)
-          (lambda (args)
-            (let (
-              cond_ (car   args)
-              tru   (cadr  args)
-              fls   (caddr args)
+                1 ())
             )
-            (eval (if (eval cond_) tru fls))))
-
-        1 ())
-    )
+        )
+        (cond
+            (is_number expr) expr
+            (is_atom expr) (env expr)
+            (= () expr) expr
+            1 (let (
+                builtin (dispatch_builtin (car expr))
+              )
+              (cond
+                (not (= builtin ())) (builtin (cdr expr))
+                1 ((eval env (car expr)) (eval env (cadr expr)) (eval env (caddr expr)))
+                )))))
 )
-(cond
-    (is_number expr) expr
-    (= () expr) expr
-    1 (let (
-        binop (dispatch_binop (car expr))
-        builtin (dispatch_builtin (car expr))
-      )
-      (cond
-        (not (= binop ())) (binop (eval (cadr expr)) (eval (caddr expr)))
-        (not (= builtin ())) (builtin (cdr expr))
-        ))))))
+
+(lambda (expr) (eval initial_env expr)))
